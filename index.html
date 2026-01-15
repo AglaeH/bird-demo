@@ -156,6 +156,7 @@
       border-radius:16px;
       padding:12px;
       line-height:1.35;
+      white-space:pre-wrap;
     }
     .clueBox small{color:var(--muted);display:block;margin-top:6px;}
     .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
@@ -210,25 +211,16 @@
     @keyframes bob{0%,100%{transform:translateY(0px);}50%{transform:translateY(-6px);}}
 
     /* Scan preview */
-    .scanWrap{
-      width:100%;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
+    .scanWrap{width:100%;display:flex;flex-direction:column;gap:10px;}
     .scanPreviewBox{
       width:100%;
       border-radius:18px;
       overflow:hidden;
       border:1px solid rgba(0,0,0,.10);
-      background:#111;
+      background:#000;
       position:relative;
     }
-    canvas#scanPreview{
-      width:100%;
-      height:auto;
-      display:block;
-    }
+    canvas#scanPreview{width:100%;height:auto;display:block;}
     .scanBadge{
       position:absolute;
       left:12px;top:12px;
@@ -241,27 +233,63 @@
       backdrop-filter: blur(8px);
     }
 
-    /* Feed animation */
+    /* Feed animation (drop clue card) */
     #feedAnim{
       position:absolute;
       left:50%;
-      bottom:110px;
-      transform:translateX(-50%);
-      z-index:20;
+      top:50%;
+      transform:translate(-50%,-50%);
+      z-index:35;
       pointer-events:none;
       opacity:0;
-      font-size:28px;
-      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+      filter: drop-shadow(0 14px 22px rgba(0,0,0,.35));
     }
     #feedAnim.show{
-      animation:feed 900ms ease-out 1;
+      animation:feedDrop 1200ms cubic-bezier(.2,.9,.2,1) 1;
       opacity:1;
     }
-    @keyframes feed{
-      0%{transform:translateX(-50%) translateY(18px) scale(.9);opacity:0;}
-      25%{opacity:1;}
-      70%{transform:translateX(-50%) translateY(-32px) scale(1.05);opacity:1;}
-      100%{transform:translateX(-50%) translateY(-48px) scale(1.02);opacity:0;}
+    #feedAnim .card{
+      width:min(300px, 82vw);
+      border-radius:18px;
+      background:rgba(255,255,255,.92);
+      border:1px solid rgba(0,0,0,.12);
+      padding:14px 14px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      backdrop-filter: blur(10px);
+    }
+    #feedAnim .left{display:flex;flex-direction:column;gap:2px;min-width:0;}
+    #feedAnim .tag{font-weight:900;font-size:13px;color:#7a5200;}
+    #feedAnim .part{font-weight:900;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    #feedAnim .mini{font-size:12px;color:rgba(0,0,0,.55);}
+    #feedAnim .icon{font-size:30px;flex:0 0 auto;}
+    #feedAnim .spark{
+      position:absolute;
+      left:50%;
+      top:50%;
+      font-size:22px;
+      opacity:0;
+      transform:translate(-50%,-50%);
+    }
+    #feedAnim.show .spark{animation:feedSpark 1200ms ease-out 1;}
+    #feedAnim .spark.s1{ transform:translate(calc(-50% - 72px), calc(-50% - 44px)); }
+    #feedAnim .spark.s2{ transform:translate(calc(-50% + 74px), calc(-50% - 18px)); }
+    #feedAnim .spark.s3{ transform:translate(calc(-50% - 18px), calc(-50% + 62px)); }
+
+    @keyframes feedDrop{
+      0%{ transform:translate(-50%,-50%) translateY(-180px) rotate(-6deg) scale(.96); opacity:0; }
+      18%{ opacity:1; }
+      55%{ transform:translate(-50%,-50%) translateY(0) rotate(0deg) scale(1); opacity:1; }
+      72%{ transform:translate(-50%,-50%) translateY(-12px) scale(1.02); opacity:1; }
+      100%{ transform:translate(-50%,-50%) translateY(-90px) rotate(2deg) scale(1.02); opacity:0; }
+    }
+    @keyframes feedSpark{
+      0%{ opacity:0; transform:translate(-50%,-50%) scale(.85); }
+      28%{ opacity:1; }
+      75%{ opacity:0; transform:translate(-50%,-50%) scale(1.25); }
+      100%{ opacity:0; }
     }
 
     /* AI hint modal typing */
@@ -275,6 +303,29 @@
       min-height:120px;
       white-space:pre-wrap;
     }
+
+    /* AI pick panel */
+    .aiPickTitle{font-weight:900;font-size:16px;}
+    .aiPickGrid{
+      display:grid;
+      grid-template-columns:repeat(2, 1fr);
+      gap:10px;
+    }
+    .aiPickBtn{
+      background:#fff;
+      border:2px solid rgba(0,0,0,.10);
+      border-radius:16px;
+      padding:12px;
+      cursor:pointer;
+      text-align:left;
+      box-shadow:none;
+    }
+    .aiPickBtn.active{
+      border-color:rgba(240,193,75,.85);
+      background:rgba(240,193,75,.18);
+    }
+    .aiPickBtn .small{font-size:12px;color:rgba(0,0,0,.55);margin-top:4px;}
+    .aiPickNote{font-size:12px;color:var(--muted);line-height:1.45;}
   </style>
 </head>
 
@@ -305,7 +356,21 @@
       </div>
 
       <div class="toast" id="toast"></div>
-      <div id="feedAnim">🍞✨</div>
+
+      <!-- Feed animation overlay -->
+      <div id="feedAnim" aria-hidden="true">
+        <div class="spark s1">✨</div>
+        <div class="spark s2">✨</div>
+        <div class="spark s3">✨</div>
+        <div class="card">
+          <div class="left">
+            <div class="tag">餵鳥（掉落線索卡）</div>
+            <div class="part" id="feedAnimPart">線索：—</div>
+            <div class="mini">請掃描線索卡背面的 QR</div>
+          </div>
+          <div class="icon">🪶</div>
+        </div>
+      </div>
     </div>
 
     <div class="bottom">
@@ -344,15 +409,25 @@
     </div>
   </div>
 
-  <!-- AI HINT MODAL -->
+  <!-- AI HINT MODAL (pick part -> answer) -->
   <div class="modal hidden" id="aiModal">
-    <div class="box" style="max-width:700px;">
+    <div class="box" style="max-width:720px;">
       <div class="boxHeader">
         <div class="title">AI 助教提示</div>
         <button class="xbtn" id="closeAi">×</button>
       </div>
+
       <div class="content">
-        <div class="aiBox" id="aiText"></div>
+        <div id="aiPickPanel">
+          <div class="aiPickTitle">你想問哪個部位的提示？</div>
+          <div class="aiPickGrid" id="aiPickGrid"></div>
+          <div class="aiPickNote">選完部位後，AI 只會提示「要看什麼」，不會直接告訴你正確答案。</div>
+        </div>
+
+        <div id="aiAnswerPanel" class="hidden">
+          <div class="aiBox" id="aiText"></div>
+        </div>
+
         <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
           <button class="btnSmall btnGhost" id="aiOk">知道了</button>
         </div>
@@ -958,20 +1033,22 @@ function headShape(pal){
 }
 
 /** ===========================
- * 10) Feed animation
+ * 10) Feed animation (drop clue card)
  * =========================== */
-function playFeedAnim(){
+function playFeedAnim(partKey){
+  const step = STEPS.find(s=>s.key===partKey);
+  $("feedAnimPart").textContent = `線索：${step ? step.label : "—"}`;
+
   feedAnim.classList.remove("show");
   void feedAnim.offsetWidth;
   feedAnim.classList.add("show");
-  setTimeout(()=>feedAnim.classList.remove("show"), 950);
+  setTimeout(()=>feedAnim.classList.remove("show"), 1250);
 }
 
 /** ===========================
  * 11) Scan guidance text (use bird feature)
  * =========================== */
 function getGuideText(partKey){
-  // 用該部位線索的第一句當「該鳥特徵」，符合你的需求
   const pool = bird.cluePool[partKey] || [];
   return pool[0] || "請依線索觀察圖卡特徵。";
 }
@@ -993,29 +1070,31 @@ function grantClue(part){
  * 13) Feed bird (drop => pendingPart)
  * =========================== */
 function feedBird(){
-  playFeedAnim();
-
   if(state.pendingPart){
-    openScan(); // 已有待掃就直接開掃描
+    playFeedAnim(state.pendingPart);
+    openScan();
     return;
   }
+
   const missing = STEPS.map(s=>s.key).filter(k=>!state.clues[k]);
   if(missing.length === 0){
     showToast("線索已集滿，可開始辨認");
     return;
   }
+
   const part = missing[Math.floor(Math.random()*missing.length)];
   state.pendingPart = part;
   saveState();
   renderChips();
   renderCounters();
 
-  // 掃描提示要是該鳥特徵（你要求的）
+  playFeedAnim(part);
+
   const targetLabel = STEPS.find(s=>s.key===part).label;
-  const guide = getGuideText(part);
   showToast(`掉落線索：請找「${bird.name}｜${targetLabel}」線索卡`);
 
   openScan();
+  const guide = getGuideText(part);
   setScanMessage(`請找線索卡中符合「${guide}」的小鳥，並掃背面 QR。`, "info");
 }
 
@@ -1031,7 +1110,6 @@ const offCanvas = document.createElement("canvas");
 const offCtx = offCanvas.getContext("2d", { willReadFrequently: true });
 
 function setScanMessage(text, type="info"){
-  // type: info / ok / bad
   const color = (type==="ok") ? "rgba(46,125,50,.10)" : (type==="bad") ? "rgba(198,40,40,.10)" : "rgba(255,255,255,.72)";
   scanHintText.style.background = color;
   scanHintText.textContent = text;
@@ -1049,7 +1127,7 @@ function openScan(){
     return;
   }
   if(typeof jsQR !== "function"){
-    showToast("掃描功能載入失敗：請重新整理（把網址最後的 v= 改大）");
+    showToast("掃描功能載入失敗：請重新整理");
     return;
   }
 
@@ -1057,7 +1135,6 @@ function openScan(){
   scanNeedText.textContent = `${bird.name}｜${targetLabel}`;
   scanBadge.textContent = "掃描中…";
 
-  // 初始化訊息：該鳥特徵提示
   const guide = getGuideText(state.pendingPart);
   setScanMessage(`請找線索卡中符合「${guide}」的小鳥，並掃背面 QR。`, "info");
 
@@ -1074,7 +1151,7 @@ function closeScan(){
 }
 
 function drawReticle(ctx, w, h, color="rgba(240,193,75,.9)"){
-  // 置中掃描框
+  // 置中掃描框（不做挖洞遮罩，避免黑框）
   const boxW = Math.round(w * 0.62);
   const boxH = Math.round(h * 0.52);
   const x = Math.round((w - boxW)/2);
@@ -1098,14 +1175,14 @@ function drawReticle(ctx, w, h, color="rgba(240,193,75,.9)"){
   corner(x, y+boxH, 1, -1);
   corner(x+boxW, y+boxH, -1, -1);
 
-  // 淡淡遮罩
-  ctx.fillStyle = "rgba(0,0,0,.15)";
-  ctx.fillRect(0,0,w,h);
-  ctx.clearRect(x,y,boxW,boxH);
-
-  // 扫描线
+  // 掃描線（只畫在框內）
   const t = (Date.now()%1200)/1200;
   const lineY = y + Math.round(t * boxH);
+
+  ctx.beginPath();
+  ctx.rect(x, y, boxW, boxH);
+  ctx.clip();
+
   ctx.fillStyle = "rgba(240,193,75,.45)";
   ctx.fillRect(x, lineY, boxW, 3);
 
@@ -1135,37 +1212,30 @@ function scanLoop(){
   const vh = video.videoHeight || 0;
 
   if(video.readyState >= 2 && vw > 0 && vh > 0){
-    // 用 16:9 的輸出，讓 scanPreview 好看
     const outW = 960;
     const outH = 540;
 
-    // 取 video 中間區域裁成 16:9
     const srcAspect = vw / vh;
     const dstAspect = outW / outH;
     let sx=0, sy=0, sw=vw, sh=vh;
     if(srcAspect > dstAspect){
-      // 太寬，裁左右
       sh = vh;
       sw = Math.round(vh * dstAspect);
       sx = Math.round((vw - sw)/2);
       sy = 0;
     }else{
-      // 太高，裁上下
       sw = vw;
       sh = Math.round(vw / dstAspect);
       sx = 0;
       sy = Math.round((vh - sh)/2);
     }
 
-    // 畫到預覽 canvas
     scanPctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH);
 
-    // 同步畫到 offCanvas 供 jsQR
     offCanvas.width = outW;
     offCanvas.height = outH;
     offCtx.drawImage(scanPreview, 0, 0);
 
-    // reticle 疊加（在預覽上）
     drawReticle(scanPctx, outW, outH);
 
     const now = Date.now();
@@ -1174,7 +1244,6 @@ function scanLoop(){
       const code = jsQR(img.data, outW, outH, { inversionAttempts: "dontInvert" });
 
       if(code && code.data){
-        // 畫出偵測到的 QR 框（讓人感覺「真的在掃」）
         drawQrBox(scanPctx, code.location);
 
         const result = handleScannedText(code.data);
@@ -1184,16 +1253,14 @@ function scanLoop(){
           return;
         }else if(result === "wrong"){
           scanBadge.textContent = "掃描到 QR，但不符合";
-          scanCooldownUntil = now + 1200; // 錯誤冷卻，避免一直跳
+          scanCooldownUntil = now + 1200;
         }
       }else{
-        // 沒掃到 QR 時，維持掃描中
         scanBadge.textContent = "掃描中…";
       }
     }
   }
 
-  // 若掃描訊息太久未更新，自動回到「指引」訊息（避免卡在錯誤訊息）
   if(state.pendingPart && Date.now() - lastScanMsgAt > 5200){
     const guide = getGuideText(state.pendingPart);
     setScanMessage(`請找線索卡中符合「${guide}」的小鳥，並掃背面 QR。`, "info");
@@ -1219,7 +1286,6 @@ function handleScannedText(text){
   const targetLabel = STEPS.find(s=>s.key===targetPart).label;
   const guide = getGuideText(targetPart);
 
-  // 1) 鳥不對：不要說「你掃到哪隻」，只說「不是本鳥」
   if(b && b !== birdKey){
     const msg = `這不是「${bird.name}」的線索卡喔，再觀察看看。\n\n「${bird.name}｜${targetLabel}」的特徵是：\n「${guide}」`;
     setScanMessage(msg, "bad");
@@ -1227,7 +1293,6 @@ function handleScannedText(text){
     return "wrong";
   }
 
-  // 2) 沒有待掃
   if(!targetPart){
     const msg = "請先按「餵鳥（掉落線索）」讓系統指定要掃的部位。";
     setScanMessage(msg, "bad");
@@ -1235,7 +1300,6 @@ function handleScannedText(text){
     return "wrong";
   }
 
-  // 3) 部位不對：不要說你掃到什麼，只說「不是本鳥的這個部位」
   if(claim !== targetPart){
     const msg = `這不是「${bird.name}」的「${targetLabel}」喔，再觀察看看。\n\n「${bird.name}｜${targetLabel}」的特徵是：\n「${guide}」`;
     setScanMessage(msg, "bad");
@@ -1243,7 +1307,6 @@ function handleScannedText(text){
     return "wrong";
   }
 
-  // success
   grantClue(claim);
   setScanMessage(`✅ 獲得線索：「${bird.name}｜${targetLabel}」`, "ok");
   showToast(`獲得線索：${targetLabel}`);
@@ -1319,13 +1382,11 @@ function renderStep(){
   const q = bird.quiz[part];
   const collected = state.clues[part]?.text || "（尚未收集到此部位線索）";
 
-  // 依你的要求改 UI 文案
   clueBox.innerHTML = `
     <div style="font-weight:900;font-size:16px;margin-bottom:6px">${q.prompt}</div>
     <div>你收集到的線索：<strong>${escapeHtml(collected)}</strong></div>
   `;
 
-  // options
   optionsGrid.innerHTML = "";
   q.options.forEach(optKey=>{
     const opt = OPTION_LIB[part][optKey];
@@ -1359,10 +1420,8 @@ function chooseOption(part, optKey, cardEl){
     state.assembledCount = Math.min(5, Object.keys(state.solved).length);
     saveState();
 
-    // 先在主畫面拼裝（但玩家會在下一個 modal 看得到結果）
     animateAssemble(prev, state.assembledCount);
 
-    // 答對：關閉題目 -> 顯示拼裝結果 -> 下一步再回題目
     setTimeout(()=>{
       closeQuizModal();
       openAssembleModal(part);
@@ -1370,8 +1429,6 @@ function chooseOption(part, optKey, cardEl){
 
   }else{
     cardEl.classList.add("wrong");
-
-    // 答錯：自動重置（你要求）
     showToast("答錯：已重置，請重新收集 5 張線索", 3600);
 
     setTimeout(()=>{
@@ -1390,8 +1447,6 @@ function openAssembleModal(partJustSolved){
   assembleTitle.textContent = "答對！已拼上部位";
   assembleTag.textContent = `${bird.name}｜${label}`;
   assembleBird.innerHTML = `<div style="width:min(520px,92vw)">${renderAssembleBirdSVG()}</div>`;
-
-  // 拼裝結果說明：也用該部位線索第一句（符合你「特徵」的概念）
   assembleSummary.textContent = `你完成了「${label}」。觀察重點：${getGuideText(partJustSolved)}`;
 
   const doneCount = Object.keys(state.solved).length;
@@ -1408,7 +1463,6 @@ function assembleNext(){
     openReveal();
     return;
   }
-  // 下一題
   const nextIdx = STEPS.findIndex(s=>!state.solved[s.key]);
   state.currentStep = (nextIdx>=0)?nextIdx:0;
   saveState();
@@ -1416,7 +1470,6 @@ function assembleNext(){
 }
 
 function renderAssembleBirdSVG(){
-  // 用跟主畫面同一套 renderBird 的結果，但在 modal 中顯示完整目前 assembledCount 的圖
   const pal = bird.palette;
   const assembled = state.assembledCount;
   const showLegs = assembled >= 1;
@@ -1444,31 +1497,60 @@ function renderAssembleBirdSVG(){
 }
 
 /** ===========================
- * 17) AI hint (modal + typing)
+ * 17) AI hint (picker -> typing)
  * =========================== */
 let typingTimer = 0;
 
-function openAiHint(){
+function openAiPicker(){
   if(state.hintLeft <= 0){
     showToast("AI 提示已用完");
     return;
   }
-  const part = STEPS[state.currentStep].key;
-  const label = STEPS[state.currentStep].label;
-  const clue = state.clues[part]?.text || getGuideText(part);
-  const bullets = bird.ai?.[part] || ["把線索拆成『顏色/形狀/有無記號』三個觀察點。"];
+  aiModal.classList.remove("hidden");
+  $("aiPickPanel").classList.remove("hidden");
+  $("aiAnswerPanel").classList.add("hidden");
+  aiText.textContent = "";
+  clearInterval(typingTimer);
 
-  // 扣次數
+  const grid = $("aiPickGrid");
+  grid.innerHTML = "";
+  const curKey = STEPS[state.currentStep]?.key;
+
+  STEPS.forEach((s, idx)=>{
+    const btn = document.createElement("button");
+    btn.className = "aiPickBtn" + (s.key===curKey ? " active" : "");
+    btn.type = "button";
+    btn.innerHTML = `<div style="font-weight:900">${idx+1}｜${s.label}</div><div class="small">點我詢問</div>`;
+    btn.addEventListener("click", ()=> openAiHint(s.key));
+    grid.appendChild(btn);
+  });
+}
+
+function openAiHint(partKey){
+  if(state.hintLeft <= 0){
+    showToast("AI 提示已用完");
+    return;
+  }
+
+  const step = STEPS.find(s=>s.key===partKey) || STEPS[state.currentStep];
+  const label = step.label;
+
+  // 扣次數（在真正生成回答時才扣）
   state.hintLeft -= 1;
   saveState();
   renderCounters();
 
-  // 組合更像 AI 的提示文字
+  $("aiPickPanel").classList.add("hidden");
+  $("aiAnswerPanel").classList.remove("hidden");
+
+  const clue = state.clues[partKey]?.text || getGuideText(partKey);
+  const bullets = bird.ai?.[partKey] || ["把線索拆成『顏色/形狀/有無記號』三個觀察點。"];
+
   const text =
 `AI 助教：我先把你的線索拆成「可以看的重點」——
 
-【目前部位】${bird.name}｜${label}
-【你的線索】「${clue}」
+【你詢問的部位】${bird.name}｜${label}
+【可用線索】「${clue}」
 
 建議觀察步驟：
 - ${bullets[0]}
@@ -1477,13 +1559,15 @@ ${bullets[2] ? "- " + bullets[2] : ""}
 
 小提醒：提示不會告訴你正確答案，只會把「要看什麼」說清楚。`;
 
-  aiModal.classList.remove("hidden");
   typeText(aiText, text, 12);
 }
 
 function closeAiModal(){
   aiModal.classList.add("hidden");
   clearInterval(typingTimer);
+  aiText.textContent = "";
+  $("aiPickPanel").classList.remove("hidden");
+  $("aiAnswerPanel").classList.add("hidden");
 }
 
 function typeText(el, text, speedMs=14){
@@ -1563,15 +1647,12 @@ function init(){
   renderChips();
   renderCounters();
 
-  // external scanner fallback
   if(handleClaimFromURLIfAny()) return;
 
-  // Try auto-start camera (iOS will likely block => show overlay)
   startCamera(true).then(ok=>{
     if(!ok) startOverlay.classList.remove("hidden");
   });
 
-  // Manual camera start
   btnCamera.addEventListener("click", async ()=>{
     const ok = await startCamera(false);
     if(ok) startOverlay.classList.add("hidden");
@@ -1582,7 +1663,6 @@ function init(){
   });
   closeStartOverlay.addEventListener("click", ()=> startOverlay.classList.add("hidden"));
 
-  // main actions
   btnFeed.addEventListener("click", feedBird);
   btnScan.addEventListener("click", openScan);
   btnStopScan.addEventListener("click", closeScan);
@@ -1599,19 +1679,17 @@ function init(){
     showToast("已重置本鳥進度");
   });
 
-  // quiz / ai
   closeQuiz.addEventListener("click", closeQuizModal);
   btnCloseQuiz2.addEventListener("click", closeQuizModal);
-  btnHintQuiz.addEventListener("click", openAiHint);
 
+  // AI: picker first
+  btnHintQuiz.addEventListener("click", openAiPicker);
   closeAi.addEventListener("click", closeAiModal);
   aiOk.addEventListener("click", closeAiModal);
 
-  // assemble
   closeAssemble.addEventListener("click", closeAssembleModal);
   btnAssembleNext.addEventListener("click", assembleNext);
 
-  // reveal
   closeReveal.addEventListener("click", closeRevealModal);
   btnReplay.addEventListener("click", ()=>{
     closeRevealModal();
