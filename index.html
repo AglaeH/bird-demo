@@ -4,349 +4,372 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Bird Builder AR Demo</title>
+
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
   <style>
     :root{
-      --bg:#0b1220; --panel:#f4ecd8; --panel2:#efe3c6; --ink:#2b2b2b;
-      --accent:#f0c14b; --good:#2e7d32; --bad:#c62828; --shadow: 0 18px 40px rgba(0,0,0,.35);
-      --neon-green: #39FF14; --neon-red: #FF3131;
+      --bg:#0b1220;
+      --panel:#f4ecd8;
+      --panel2:#efe3c6;
+      --ink:#2b2b2b;
+      --muted:#6b6256;
+      --accent:#f0c14b;
+      --good:#2e7d32;
+      --bad:#c62828;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --radius:18px;
     }
-    *{box-sizing:border-box;font-family: system-ui, -apple-system, sans-serif;}
+    *{box-sizing:border-box;font-family: ui-sans-serif, system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;}
     body{margin:0;background:var(--bg);color:#fff;overflow:hidden;}
     #app{position:relative;height:100dvh;width:100vw;background:#000;}
-    video#camera{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
+    video#camera{
+      position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+      filter:saturate(1.05) contrast(1.05);
+      background:#000;
+    }
+    #overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:14px;pointer-events:none;}
     
-    #overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:14px;pointer-events:none;z-index:10;}
-    .pill{pointer-events:auto;background:rgba(20,20,20,.7);backdrop-filter:blur(10px);padding:8px 12px;border-radius:999px;font-size:14px;border:1px solid rgba(255,255,255,0.15);}
-    .birdCard{pointer-events:none;width:min(500px,92vw);background:rgba(20,20,20,0.5);backdrop-filter:blur(12px);border-radius:26px;padding:20px;margin:0 auto;border:1px solid rgba(255,255,255,0.15);text-align:center;}
-    .hintRow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;}
-    .chip{background:rgba(255,255,255,0.1);padding:5px 10px;border-radius:999px;font-size:11px;}
-    .chip.done{background:var(--good);}
-    .chip.pending{background:var(--accent);color:#000;}
-
-    /* 餵食落子動畫 */
-    .feedOverlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:100;background:rgba(0,0,0,.25);backdrop-filter:blur(4px);}
-    .feedOverlay.show{display:flex;}
-    .feedCard{width:min(360px, 90vw);background:rgba(255,255,255,.95);border-radius:24px;padding:24px;text-align:center;color:#111;box-shadow:var(--shadow);}
-    .feedAnim{position:relative;height: 120px;margin: 10px auto;width: 200px;}
-    .bowl{position:absolute;left:50%;bottom: 10px;width: 130px;height: 40px;transform: translateX(-50%);border-radius: 0 0 60px 60px;border: 3px solid rgba(163,58,42,.7);border-top: 0;background: rgba(163,58,42,0.1);}
-    .seed{position:absolute;width: 10px; height: 10px;border-radius: 999px;background: rgba(163,58,42,.9);top: 0px;left: 50%;transform: translateX(-50%);animation: fall 0.8s ease-in infinite;opacity:0;}
-    .seed.s1{ left: 35%; animation-delay: .00s; }
-    .seed.s2{ left: 50%; animation-delay: .12s; }
-    .seed.s3{ left: 62%; animation-delay: .22s; }
-    .seed.s4{ left: 45%; animation-delay: .32s; }
-    @keyframes fall{
-      0%{ transform: translate(-50%, 0) scale(.9); opacity: 0; }
-      20%{ opacity: 1; }
-      70%{ transform: translate(-50%, 90px) scale(1); opacity: 1; }
-      100%{ transform: translate(-50%, 90px) scale(.4); opacity: 0; }
+    /* 介面組件樣式保留 */
+    .topbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;}
+    .pill{
+      pointer-events:auto;
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 12px;border-radius:999px;
+      background:rgba(20,20,20,.55);backdrop-filter: blur(8px);
+      border:1px solid rgba(255,255,255,0.12);
+      font-size:14px;
+    }
+    .birdCard{
+      pointer-events:none;
+      width:min(520px,92vw);
+      background:rgba(20,20,20,.28);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:26px;
+      padding:14px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+    }
+    .birdCanvas svg{width:min(420px,86vw);height:auto;}
+    .hintRow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .chip{
+      pointer-events:none;
+      background:rgba(255,255,255,0.14);
+      padding:6px 10px;border-radius:999px;
+      font-size:12px;
     }
 
-    /* AI 引導 Modal */
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;pointer-events:auto;}
+    .bottom{
+      pointer-events:auto;
+      display:flex;gap:10px;flex-wrap:wrap;justify-content:center;
+      padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
+    button{
+      border:0;border-radius:16px;
+      padding:12px 14px;font-size:15px;
+      background:#ffffff; color:#111;
+      box-shadow: 0 10px 18px rgba(0,0,0,.25);
+      cursor:pointer;
+    }
+    button.dark{
+      background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.18);
+      backdrop-filter: blur(8px);
+    }
+    button:disabled{opacity:.45;cursor:not-allowed;}
+
+    /* AI Modal 樣式優化 */
+    .modal{
+      position:fixed;inset:0;
+      background:rgba(0,0,0,0.65);
+      display:flex;align-items:center;justify-content:center;
+      padding:14px;
+      z-index:100;
+    }
     .hidden{display:none !important;}
-    .box{background:var(--panel);color:#111;width:100%;max-width:420px;border-radius:26px;overflow:hidden;box-shadow:var(--shadow);}
-    .boxContent{padding:26px;display:flex;flex-direction:column;gap:18px;}
-    .aiText{font-size:16px;line-height:1.5;font-weight:600;min-height:80px;white-space:pre-wrap;}
-    .optBtn{width:100%;padding:14px;border-radius:14px;border:2px solid #ccc;background:#fff;font-weight:bold;cursor:pointer;text-align:left;transition:0.2s;}
-    .optBtn:hover{border-color:var(--accent);background:#fffdfa;}
+    .box{
+      width:min(480px,96vw);
+      background:var(--panel);
+      color:var(--ink);
+      border-radius:22px;
+      box-shadow: var(--shadow);
+      border:1px solid rgba(0,0,0,.08);
+      overflow:hidden;
+    }
+    .boxHeader{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px;
+      background:linear-gradient(180deg, var(--panel), var(--panel2));
+      border-bottom:1px solid rgba(0,0,0,.08);
+    }
+    .title{font-size:17px;font-weight:900;}
+    .content{padding:18px;display:flex;flex-direction:column;gap:14px;}
+    .aiText{line-height:1.5; font-size:16px; font-weight:600;}
+    .optGrid{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    .optBtn{
+      background:#fff; border:2px solid rgba(0,0,0,0.1); border-radius:14px;
+      padding:12px; font-weight:800; cursor:pointer;
+    }
+    .optBtn:active{background:var(--accent);}
 
-    /* 掃描對焦框 */
-    .scanBox{position:absolute;border:5px solid var(--neon-green);border-radius:15px;pointer-events:none;z-index:5;display:none;box-shadow: 0 0 15px var(--neon-green);}
-    .scanBox.error{border-color:var(--neon-red);box-shadow: 0 0 15px var(--neon-red);}
-    canvas#scanPreview{width:100%;border-radius:18px;background:#000;}
+    /* 餵鳥動畫特效 */
+    #feedAnim{
+      position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+      z-index:35;pointer-events:none;opacity:0;
+    }
+    #feedAnim.show{animation:feedDrop 1200ms cubic-bezier(.2,.9,.2,1) 1;opacity:1;}
+    @keyframes feedDrop{
+      0%{ transform:translate(-50%,-50%) translateY(-180px); opacity:0; }
+      18%{ opacity:1; }
+      55%{ transform:translate(-50%,-50%) translateY(0); opacity:1; }
+      100%{ transform:translate(-50%,-50%) translateY(-90px); opacity:0; }
+    }
 
-    .bottom{pointer-events:auto;display:flex;gap:10px;justify-content:center;padding-bottom:env(safe-area-inset-bottom);}
-    button{border:0;border-radius:16px;padding:12px 20px;font-size:15px;background:#fff;color:#111;font-weight:bold;cursor:pointer;}
-    button:disabled{opacity:0.3;}
+    canvas#scanPreview{width:100%;height:auto;display:block;border-radius:14px;background:#000;}
   </style>
 </head>
+
 <body>
 <div id="app">
   <video id="camera" autoplay playsinline muted></video>
+
   <div id="overlay">
-    <div style="display:flex;justify-content:space-between;">
-      <div class="pill">🔍 <strong id="birdNameDisplay">神祕鳥</strong></div>
-      <div class="pill">線索 <strong id="clueCount">0</strong>/5</div>
+    <div class="topbar">
+      <div class="pill">🔍 <strong id="birdName">神祕鳥</strong></div>
+      <div class="pill">線索 <strong id="clueCount">0</strong>/5 <span style="opacity:.6">|</span> 待掃 <strong id="pendingText">—</strong></div>
     </div>
-    <div class="birdCard">
-      <div id="birdBase" style="height:120px;display:flex;align-items:center;justify-content:center;">
-        <svg viewBox="0 0 100 60" width="140">
-          <circle cx="50" cy="30" r="25" fill="none" stroke="white" stroke-width="2" stroke-dasharray="6 4" style="opacity:0.4" />
-          <text x="50" y="34" font-size="6" text-anchor="middle" fill="white" style="opacity:0.6">? 神祕鳥 ?</text>
-        </svg>
-      </div>
-      <div id="clueChips" class="hintRow"></div>
-      <div id="instructionText" style="font-size:13px;color:var(--accent);margin-top:12px;font-weight:bold;">點擊餵鳥開始解謎探究</div>
-    </div>
-    <div class="bottom">
-      <button id="btnFeed">餵鳥</button>
-      <button id="btnQuiz" disabled style="background:#222;color:#fff;">開始辨認 (0/5)</button>
-      <button onclick="location.reload()" style="background:#444;color:#fff;font-size:12px;padding:8px;">重新開始</button>
-    </div>
-  </div>
 
-  <div class="feedOverlay" id="feedOverlay">
-    <div class="feedCard">
-      <div style="font-weight:900; font-size:18px; margin-bottom:10px;">餵食中...</div>
-      <div class="feedAnim">
-        <div class="seed s1"></div><div class="seed s2"></div><div class="seed s3"></div><div class="seed s4"></div>
-        <div class="bowl"></div>
-      </div>
-      <div style="color:rgba(0,0,0,.6); font-size:14px;">發現了新的特徵！</div>
-    </div>
-  </div>
-
-  <div class="modal hidden" id="guidanceModal">
-    <div class="box">
-      <div class="boxContent">
-        <div id="aiIcon" style="font-size:12px;color:#7a5200;font-weight:bold">✨ AI 助教解謎引導</div>
-        <div id="aiText" class="aiText"></div>
-        <div id="aiOptions" style="display:flex;flex-direction:column;gap:10px;"></div>
-        <div id="aiClueBox" class="hidden" style="background:#fff8e1;padding:15px;border-radius:12px;border:1px solid #ffe082;margin-top:10px;font-weight:bold;color:#333;"></div>
-        <button id="btnGoScan" class="hidden" style="width:100%;background:#111;color:#fff;padding:15px;border-radius:14px;border:0;font-weight:bold;">知道了，去掃描卡片！</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal hidden" id="scanModal">
-    <div class="box" style="max-width:720px;">
-      <div class="boxContent">
-        <h3 style="margin:0">掃描特徵線索卡</h3>
-        <div style="position:relative;">
-          <div id="scanFocusBox" class="scanBox"></div>
-          <canvas id="scanPreview"></canvas>
+    <div class="stage">
+      <div class="birdCard">
+        <div class="birdCanvas" id="birdCanvas"></div>
+        <div class="hintRow" id="clueChips"></div>
+        <div id="dynamicHint" style="font-size:12px;opacity:.92;text-align:center;line-height:1.35;margin-top:8px;">
+          請按 <strong>餵鳥</strong> 開始探索神祕鳥的特徵
         </div>
-        <div id="scanPersistHint" style="background:#fff;padding:12px;border-radius:12px;border:1px solid #ddd;font-size:14px;color:#333;"></div>
-        <button id="btnScanBack" onclick="closeScan()" style="background:#eee;border:0;padding:12px;border-radius:12px;width:100%;margin-top:10px;">暫時返回</button>
+      </div>
+      <div id="feedAnim" aria-hidden="true">✨ 掉落線索卡 ✨</div>
+    </div>
+
+    <div class="bottom">
+      <button class="dark" id="btnCamera">啟動相機</button>
+      <button id="btnFeed">餵鳥</button>
+      <button class="btnPrimary" id="btnQuiz" disabled>辨認身分 (0/5)</button>
+      <button class="dark" id="btnReset">重置進度</button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="aiModal">
+    <div class="box">
+      <div class="boxHeader">
+        <div class="title" id="aiModalTitle">AI 助教引導</div>
+      </div>
+      <div class="content">
+        <div class="aiText" id="aiModalText"></div>
+        <div class="optGrid" id="aiOptGrid"></div>
+        <button id="aiNextBtn" class="hidden" style="width:100%; padding:14px; border-radius:14px; background:#1b1b1b; color:#fff;">知道了，去掃描卡片！</button>
+        <button id="aiCloseBtn" class="hidden" style="width:100%; padding:14px; border-radius:14px; background:#eee; color:#111;">我會再仔細觀察看看</button>
       </div>
     </div>
   </div>
+
+  <div class="modal hidden" id="scanOverlay">
+    <div class="box" style="max-width:720px;">
+      <div class="boxHeader"><div class="title">掃描線索卡</div><button onclick="closeScan()" style="border:0;background:none;font-size:24px;">×</button></div>
+      <div class="content">
+        <div style="width:100%; border-radius:14px; overflow:hidden;"><canvas id="scanPreview"></canvas></div>
+        <div id="scanHintBox" style="background:#fff; padding:12px; border-radius:12px; font-size:14px; border:1px solid #ddd;"></div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
 /** ===========================
- * BIRDS 資料物件 (修正破梗文字與選項缺失)
+ * 1) 核心資料結構與神祕鳥腳本
  * =========================== */
 const BIRDS = {
   sparrow: {
-    key: "sparrow", name: "麻雀",
+    name: "麻雀",
+    clues: {
+      legs: "腳短短、偏褐色", body: "身體褐色，背部有條紋",
+      wing: "短圓型，帶有淡色翼帶", tail: "中等長度，末端偏平", head: "頭部素色棕，無白眼圈"
+    },
     induction: {
-      legs: { 
-        q: "這隻鳥要掉落『腳』的線索了！觀察時，什麼特徵最有辨識度？",
-        options: [
-          { t: "腳的顏色 (褐色)", isBest: true, feedback: "沒錯！顏色是關鍵，褐色的細腳很特別。", clue: "腳短短、偏褐色" },
-          { t: "腳的重量", isBest: false, feedback: "重量難以觀察喔，對於這隻鳥來說顏色更明顯，再選選看吧！", clue: "腳短短、偏褐色" }
-        ]
-      },
-      body: {
-        q: "我們要看『身體』了！你覺得應該注意羽毛條紋，還是鳥的體溫？",
-        options: [
-          { t: "羽毛的條紋感", isBest: true, feedback: "正確！背部有明顯黑色條紋是這隻鳥的特徵。", clue: "身體褐色，背上有深色條紋" },
-          { t: "鳥的體溫", isBest: false, feedback: "體溫無法用看的測量喔！觀察羽毛條紋比較實際，選另一個試試！", clue: "身體褐色，背上有深色條紋" }
-        ]
-      },
-      wing: {
-        q: "這張是『翅膀』線索！要看翅膀上的顏色斑紋，還是看羽毛的重量？",
-        options: [
-          { t: "斑紋 (翼帶)", isBest: true, feedback: "沒錯！翅膀上的淡色翼帶是觀察重點。", clue: "翅膀短圓，有淡色翼帶" },
-          { t: "羽毛的重量", isBest: false, feedback: "重量看不出來喔！觀察翅膀上的翼帶才是重點。", clue: "翅膀短圓，有淡色翼帶" }
-        ]
-      },
-      tail: {
-        q: "關於『尾巴』，你覺得要看末端的形狀，還是尾巴擺動的速度？",
-        options: [
-          { t: "末端的形狀", isBest: true, feedback: "正確！尾巴末端平平的是這隻鳥的特徵。", clue: "尾巴中等長度，末端偏平" },
-          { t: "擺動的速度", isBest: false, feedback: "擺動速度會變，看末端形狀（方尾）更科學喔，再選一次吧！", clue: "尾巴中等長度，末端偏平" }
-        ]
+      legs: {
+        q: "我們要觀察『腳』了！你覺得腳的『顏色』還是『長短』比較容易讓你認出這隻鳥？",
+        opt1: { label: "顏色", feedback: "觀察顏色是非常科學的做法！對於這隻鳥來說，腳的色彩很有特色。" },
+        opt2: { label: "長短", feedback: "觀察長短也很好，但這隻鳥的顏色對於辨識更有幫助喔！" }
       },
       head: {
-        q: "最後是『頭部』！觀察這隻鳥的頭，要看有沒有白圈，還是看嘴巴寬度？",
-        options: [
-          { t: "眼睛周圍的特徵", isBest: true, feedback: "對！這隻鳥沒有白眼圈，但臉上有黑斑。", clue: "頭部素色棕，無白眼圈，臉頰有黑斑" },
-          { t: "嘴巴的寬度", isBest: false, feedback: "嘴巴大家都差不多～觀察眼睛周圍有沒有特徵才是關鍵。", clue: "頭部素色棕，無白眼圈，臉頰有黑斑" }
-        ]
+        q: "最後是『頭部』！你覺得看『眼周是否有圈』還是『嘴巴寬度』比較專業？",
+        opt1: { label: "眼周記號", feedback: "正確！眼周是否有特殊記號（如眼圈或黑斑）是辨認鳥類的重要指標。" },
+        opt2: { label: "嘴巴寬度", feedback: "看嘴巴也不錯，但對於這隻鳥，眼睛周圍的特徵會更顯眼喔！" }
       }
+      // 其他部位可自行 Key 入...
     }
   },
   bulbul: {
-    key: "bulbul", name: "白頭翁",
+    name: "白頭翁",
+    clues: { legs: "腳偏黑，抓枝很穩", head: "頭頂偏白，臉側較深" /* ... */ },
     induction: {
-      legs: { 
-        q: "這隻鳥的『腳』要出現了！你覺得要看什麼？",
-        options: [
-          { t: "腳的顏色 (黑色)", isBest: true, feedback: "沒錯！這隻鳥的腳是黑色的。", clue: "腳偏黑，抓枝很穩" },
-          { t: "腳趾的數量", isBest: false, feedback: "大多數鳥腳趾數量一樣喔，看顏色才是重點，再選一次！", clue: "腳偏黑，抓枝很穩" }
-        ]
-      },
-      head: { 
-        q: "這隻鳥的『頭部』最明顯的是什麼？",
-        options: [
-          { t: "頭頂的色區 (白色)", isBest: true, feedback: "正確！頭頂那塊白色羽毛是它的特徵。", clue: "頭頂偏白，臉側較深" },
-          { t: "頭的圓潤程度", isBest: false, feedback: "圓不圓很主觀～看頭頂那一塊顏色就對了！再試試！", clue: "頭頂偏白，臉側較深" }
-        ]
-      },
-      body: { q: "『身體』要出現了！要看什麼？", options: [{t:"身體色調", isBest:true, feedback:"對！灰褐色的身體配上淡色腹部。", clue:"身體灰褐色，腹部較淡"},{t:"鳥的體積", isBest:false, feedback:"體積很難在卡片上比出來，看色調吧！", clue:"身體灰褐色，腹部較淡"}]},
-      wing: { q: "『翅膀』的線索！要看顏色嗎？", options: [{t:"翅膀邊緣的色澤", isBest:true, feedback:"沒錯！帶點黃綠色。", clue:"翅膀深色、邊緣帶黃綠色"},{t:"羽毛的厚度", isBest:false, feedback:"厚度看不出來喔，觀察色澤吧！", clue:"翅膀深色、邊緣帶黃綠色"}]},
-      tail: { q: "『尾巴』要如何辨認？", options: [{t:"末端的形狀", isBest:true, feedback:"是的，中長平尾。", clue:"尾巴中長，末端偏方"},{t:"尾巴的柔軟度", isBest:false, feedback:"柔軟度看不出來呀，看形狀吧！", clue:"尾巴中長，末端偏方"}]}
+      legs: { q: "關於這隻鳥的『腳』，要看『抓握力』還是『顏色』？", opt1: { label: "顏色", feedback: "沒錯，深色的腳是這隻鳥的特徵之一！" }, opt2: { label: "抓握力", feedback: "抓握力很難肉眼觀察喔，看顏色會更快！" } }
     }
   }
 };
 
+const STEPS = ["legs", "body", "wing", "tail", "head"];
+const labels = { legs:"腳", body:"身體", wing:"翅膀", tail:"尾巴", head:"頭部" };
+
 /** ===========================
- * 核心邏輯
+ * 2) 遊戲狀態與神祕鳥初始化
  * =========================== */
 let state = {
-  bird: null,
-  clues: new Set(),
+  mysteryBirdKey: null,
+  clues: {},
   pendingPart: null,
   cameraOn: false,
-  correctionCount: 0
+  scanning: false
 };
 
 const $ = (id) => document.getElementById(id);
-const labels = { legs:"腳", body:"身體", wing:"翅膀", tail:"尾巴", head:"頭部" };
 
 function initMysteryBird() {
   const keys = Object.keys(BIRDS);
-  state.bird = BIRDS[keys[Math.floor(Math.random() * keys.length)]];
-  $("birdNameDisplay").innerText = "神祕鳥";
-  updateUI();
+  state.mysteryBirdKey = keys[Math.floor(Math.random() * keys.length)];
+  $("birdName").innerText = "神祕鳥"; // 鎖定神祕稱呼
+  console.log("神秘鳥已鎖定");
+  renderUI();
 }
 
-function updateUI() {
-  $("clueCount").innerText = state.clues.size;
-  $("btnQuiz").disabled = (state.clues.size < 5);
-  const chipBox = $("clueChips");
-  chipBox.innerHTML = "";
-  ["legs", "body", "wing", "tail", "head"].forEach(p => {
-    const c = document.createElement("div");
-    c.className = `chip ${state.clues.has(p) ? 'done' : (state.pendingPart === p ? 'pending' : '')}`;
-    c.innerText = `${state.clues.has(p) ? '✅' : ''} ${labels[p]}`;
-    chipBox.appendChild(c);
-  });
-}
-
+/** ===========================
+ * 3) 攔截式餵鳥流程
+ * =========================== */
 $("btnFeed").onclick = () => {
-  if (state.pendingPart) return alert(`請先掃描目前的線索！`);
-  const parts = ["legs", "body", "wing", "tail", "head"];
-  const missing = parts.filter(p => !state.clues.has(p));
+  if (state.pendingPart) return alert("請先掃描目前的線索！");
+  const missing = STEPS.filter(s => !state.clues[s]);
   if (missing.length === 0) return alert("線索已集滿！");
-  
+
   state.pendingPart = missing[Math.floor(Math.random() * missing.length)];
-  $("feedOverlay").classList.add("show");
+  
+  playFeedAnim(); // 執行餵食特效
+
   setTimeout(() => {
-    $("feedOverlay").classList.remove("show");
     showInductionModal(state.pendingPart);
-  }, 1200);
+  }, 1300);
 };
 
-function showInductionModal(part) {
-  const modal = $("guidanceModal");
-  const script = state.bird.induction[part];
-  modal.classList.remove("hidden");
-  $("aiIcon").innerText = "✨ AI 助教解謎引導";
-  $("aiClueBox").classList.add("hidden");
-  $("btnGoScan").classList.add("hidden");
-  $("aiText").innerText = script.q;
-  $("aiOptions").innerHTML = "";
+function playFeedAnim() {
+  const anim = $("feedAnim");
+  anim.classList.add("show");
+  setTimeout(() => anim.classList.remove("show"), 1200);
+}
 
-  script.options.forEach(opt => {
+function showInductionModal(part) {
+  const birdData = BIRDS[state.mysteryBirdKey];
+  const script = birdData.induction[part] || { q: `準備去掃描『${labels[part]}』吧！`, opt1: { label: "出發", feedback: "好，讓我們去找線索！" } };
+  
+  $("aiModal").classList.remove("hidden");
+  $("aiModalTitle").innerText = "✨ AI 助教：特徵假設引導";
+  $("aiModalText").innerText = script.q;
+  $("aiOptGrid").innerHTML = "";
+  $("aiNextBtn").classList.add("hidden");
+  $("aiCloseBtn").classList.add("hidden");
+
+  [script.opt1, script.opt2].forEach(opt => {
+    if (!opt) return;
     const btn = document.createElement("button");
     btn.className = "optBtn";
-    btn.innerText = opt.t;
+    btn.innerText = opt.label;
     btn.onclick = () => {
-      $("aiText").innerText = opt.feedback;
-      if (opt.isBest) {
-        $("aiClueBox").innerHTML = `🎁 獲得線索：<br/>${opt.clue}`;
-        $("aiClueBox").classList.remove("hidden");
-        $("aiOptions").innerHTML = ""; 
-        $("btnGoScan").classList.remove("hidden");
-        $("btnGoScan").onclick = () => {
-          modal.classList.add("hidden");
-          openScan(opt.clue);
-        };
-      }
+      $("aiOptGrid").innerHTML = "";
+      $("aiModalText").innerText = opt.feedback + "\n\n恭喜！你獲得了線索：\n「" + birdData.clues[part] + "」";
+      $("aiNextBtn").classList.remove("hidden");
+      $("aiNextBtn").onclick = () => {
+        $("aiModal").classList.add("hidden");
+        openScan();
+      };
     };
-    $("aiOptions").appendChild(btn);
+    $("aiOptGrid").appendChild(btn);
   });
 }
 
-function openScan(clueText) {
-  if(!state.cameraOn) startCamera();
-  $("scanModal").classList.remove("hidden");
-  $("scanPersistHint").innerText = `💡 線索指引：${clueText}`;
-  updateUI();
-  requestAnimationFrame(scanLoop);
-}
-
-function closeScan() { $("scanModal").classList.add("hidden"); }
-
-// 核心：特徵比對與修正假設
-function handleScannedText(codeData) {
-  const focus = $("scanFocusBox");
-  const modal = $("guidanceModal");
+/** ===========================
+ * 4) 特徵比對回饋 (AR Error Scaffolding)
+ * =========================== */
+function handleScannedText(text) {
   let url;
-  try { url = new URL(codeData); } catch(e) { return; }
-
+  try { url = new URL(text); } catch(e) { return; }
+  
   const scannedBirdKey = url.searchParams.get("bird");
   const scannedPart = url.searchParams.get("claim");
 
-  if (scannedPart === state.pendingPart) {
-    if (scannedBirdKey === state.bird.key) {
-      focus.classList.remove("error");
-      state.clues.add(state.pendingPart);
-      state.pendingPart = null;
-      alert("✅ 掃描正確！這就是我們要找的特徵。");
-      closeScan();
-      updateUI();
-    } else {
-      // 錯誤：使用 AI Modal 進行特徵比對
-      state.correctionCount++;
-      focus.classList.add("error");
-      const scannedBird = BIRDS[scannedBirdKey] || BIRDS.sparrow;
-      const targetBird = state.bird;
-      const scannedFeature = scannedBird.induction[scannedPart].options.find(o => o.isBest).clue;
-      const targetFeature = targetBird.induction[scannedPart].options.find(o => o.isBest).clue;
+  if (scannedPart !== state.pendingPart) {
+    alert(`這張是『${labels[scannedPart]}』，但我們現在需要的是『${labels[state.pendingPart]}』喔！`);
+    return;
+  }
 
-      closeScan();
-      modal.classList.remove("hidden");
-      $("aiIcon").innerText = "❌ 觀察假設修正";
-      $("aiOptions").innerHTML = "";
-      $("aiClueBox").classList.add("hidden");
-      $("btnGoScan").classList.remove("hidden");
-      $("btnGoScan").innerText = "重新觀察並掃描";
-      $("aiText").innerText = `你掃到的這張卡特徵是「${scannedFeature}」，\n但我們的神祕鳥「${labels[scannedPart]}」線索應該是「${targetFeature}」喔！\n\n再去尋找正確的卡片吧。`;
-      $("btnGoScan").onclick = () => {
-        modal.classList.add("hidden");
-        openScan(targetFeature);
-      };
-    }
+  if (scannedBirdKey === state.mysteryBirdKey) {
+    // 正確掃描
+    state.clues[state.pendingPart] = true;
+    state.pendingPart = null;
+    closeScan();
+    alert("✅ 掃描正確！獲得線索成功。");
+    renderUI();
   } else {
-    alert(`❌ 掃錯部位囉！現在需要掃描「${labels[state.pendingPart]}」。`);
+    // 觸發「特徵比對回饋」
+    state.scanning = false;
+    $("scanOverlay").classList.add("hidden");
+    
+    const targetClue = BIRDS[state.mysteryBirdKey].clues[state.pendingPart];
+    const scannedClue = BIRDS[scannedBirdKey]?.clues[scannedPart] || "其他鳥類的特徵";
+    
+    $("aiModal").classList.remove("hidden");
+    $("aiModalTitle").innerText = "❌ 觀察假設修正";
+    $("aiOptGrid").innerHTML = "";
+    $("aiNextBtn").classList.add("hidden");
+    $("aiCloseBtn").classList.remove("hidden");
+    
+    $("aiModalText").innerHTML = `
+      哎呀！你掃到的這張卡片展示的是：<br/><strong>「${scannedClue}」</strong><br/><br/>
+      但我們的線索說這隻鳥的特徵應該是：<br/><strong>「${targetClue}」</strong><br/><br/>
+      這兩者看起來不太一樣喔。請再仔細觀察看看！
+    `;
+    
+    $("aiCloseBtn").onclick = () => {
+      $("aiModal").classList.add("hidden");
+    };
   }
 }
 
+/** ===========================
+ * 5) 掃描與相機基礎邏輯
+ * =========================== */
+function openScan() {
+  if (!state.cameraOn) return alert("請先啟動相機！");
+  $("scanOverlay").classList.remove("hidden");
+  $("scanHintBox").innerText = "💡 線索：『" + BIRDS[state.mysteryBirdKey].clues[state.pendingPart] + "』";
+  state.scanning = true;
+  requestAnimationFrame(scanLoop);
+}
+
+function closeScan() { state.scanning = false; $("scanOverlay").classList.add("hidden"); }
+
 function scanLoop() {
+  if (!state.scanning) return;
   const video = $("camera");
   const canvas = $("scanPreview");
-  const focus = $("scanFocusBox");
   const ctx = canvas.getContext("2d");
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.height = 480; canvas.width = 640;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.width = 640; canvas.height = 480;
+    ctx.drawImage(video, 0, 0, 640, 480);
     const code = jsQR(ctx.getImageData(0,0,640,480).data, 640, 480);
-    if (code) {
-      focus.style.display = "block";
-      const loc = code.location;
-      focus.style.left = (loc.topLeftCorner.x / 640 * 100) + "%";
-      focus.style.top = (loc.topLeftCorner.y / 480 * 100) + "%";
-      focus.style.width = (loc.topRightCorner.x - loc.topLeftCorner.x) / 640 * 100 + "%";
-      focus.style.height = (loc.bottomLeftCorner.y - loc.topLeftCorner.y) / 480 * 100 + "%";
-      handleScannedText(code.data);
-    } else { focus.style.display = "none"; }
+    if (code) handleScannedText(code.data);
   }
-  if (!$("scanModal").classList.contains("hidden")) requestAnimationFrame(scanLoop);
+  requestAnimationFrame(scanLoop);
 }
 
 async function startCamera() {
@@ -354,10 +377,29 @@ async function startCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     $("camera").srcObject = stream;
     state.cameraOn = true;
-    updateUI();
-  } catch (e) { alert("相機授權失敗"); }
+    $("btnCamera").disabled = true;
+    $("btnCamera").innerText = "相機已開啟";
+  } catch(e) { alert("無法開啟相機"); }
 }
 
+function renderUI() {
+  const count = Object.keys(state.clues).length;
+  $("clueCount").innerText = count;
+  $("pendingText").innerText = state.pendingPart ? labels[state.pendingPart] : "—";
+  $("btnQuiz").disabled = (count < 5);
+  
+  const chipContainer = $("clueChips");
+  chipContainer.innerHTML = "";
+  STEPS.forEach(s => {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.innerText = (state.clues[s] ? "✅ " : "⬚ ") + labels[s];
+    chipContainer.appendChild(chip);
+  });
+}
+
+$("btnCamera").onclick = startCamera;
+$("btnReset").onclick = () => location.reload();
 window.onload = initMysteryBird;
 </script>
 </body>
