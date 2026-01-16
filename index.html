@@ -6,30 +6,48 @@
   <title>Bird Builder AR Demo</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
-    :root{ --bg:#0b1220; --panel:#f4ecd8; --accent:#f0c14b; --good:#2e7d32; --bad:#c62828; --shadow: 0 18px 40px rgba(0,0,0,.35); }
+    :root{
+      --bg:#0b1220; --panel:#f4ecd8; --panel2:#efe3c6; --ink:#2b2b2b;
+      --accent:#f0c14b; --good:#2e7d32; --bad:#c62828; --shadow: 0 18px 40px rgba(0,0,0,.35);
+    }
     *{box-sizing:border-box;font-family: system-ui, sans-serif;}
     body{margin:0;background:var(--bg);color:#fff;overflow:hidden;}
     #app{position:relative;height:100dvh;width:100vw;background:#000;}
     video#camera{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}
+    
+    /* UI 介面層 */
     #overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:14px;pointer-events:none;z-index:10;}
     .pill{pointer-events:auto;background:rgba(20,20,20,.6);backdrop-filter:blur(8px);padding:8px 12px;border-radius:999px;font-size:14px;border:1px solid rgba(255,255,255,0.1);}
-    .birdCard{pointer-events:none;width:min(500px,92vw);background:rgba(20,20,20,0.3);backdrop-filter:blur(10px);border-radius:26px;padding:14px;margin:0 auto;border:1px solid rgba(255,255,255,0.1);}
-    .dynamicHint{font-size:13px;color:var(--accent);text-align:center;margin-top:8px;font-weight:bold;background:rgba(0,0,0,0.3);padding:6px;border-radius:8px;}
+    
+    .birdCard{pointer-events:none;width:min(500px,92vw);background:rgba(20,20,20,0.4);backdrop-filter:blur(10px);border-radius:26px;padding:20px;margin:0 auto;border:1px solid rgba(255,255,255,0.1);text-align:center;}
+    .instruction{font-size:13px;color:var(--accent);margin-top:10px;font-weight:bold;}
+
     .bottom{pointer-events:auto;display:flex;gap:10px;justify-content:center;padding-bottom:env(safe-area-inset-bottom);}
-    button{border:0;border-radius:16px;padding:12px 16px;font-size:15px;background:#fff;color:#111;font-weight:bold;cursor:pointer;box-shadow:var(--shadow);}
-    button:disabled{opacity:0.4;cursor:not-allowed;}
-    .toast{position:absolute;left:50%;transform:translateX(-50%);bottom:130px;background:rgba(0,0,0,0.8);padding:10px 20px;border-radius:999px;font-size:14px;opacity:0;transition:0.3s;z-index:100;}
-    .toast.show{opacity:1;}
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
+    button{border:0;border-radius:16px;padding:12px 18px;font-size:15px;background:#fff;color:#111;font-weight:bold;cursor:pointer;box-shadow:var(--shadow);}
+    button.dark{background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.2);}
+    button:disabled{opacity:0.3;cursor:not-allowed;}
+
+    /* 餵食動畫 Overlay */
+    .feedOverlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:100;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);}
+    .feedOverlay.show{display:flex;}
+    .feedCard{width:min(320px,90vw);background:rgba(255,255,255,0.95);border-radius:24px;padding:20px;text-align:center;color:#111;}
+    .bowl{width:100px;height:35px;border:3px solid #a33a2a;border-top:0;border-radius:0 0 50px 50px;margin:40px auto 10px;position:relative;background:rgba(163,58,42,0.1);}
+    .seed{position:absolute;width:8px;height:8px;background:#a33a2a;border-radius:50%;top:-40px;left:50%;transform:translateX(-50%);animation:fall 0.8s infinite;}
+    @keyframes fall{0%{top:-40px;opacity:0;} 50%{opacity:1;} 100%{top:25px;opacity:0;}}
+
+    /* AI 引導對話框 */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;pointer-events:auto;}
     .hidden{display:none !important;}
-    .box{background:var(--panel);color:#111;width:100%;max-width:400px;border-radius:24px;overflow:hidden;}
-    .opt{background:#fff;border:2px solid #ddd;border-radius:16px;padding:12px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:10px;}
-    .opt.correct{border-color:var(--good);background:#e8f5e9;}
-    .opt.wrong{border-color:var(--bad);background:#ffebee;}
-    #feedAnim{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;opacity:0;pointer-events:none;}
-    #feedAnim.show{animation:drop 1s forwards;}
-    @keyframes drop{0%{opacity:0;top:40%;} 20%{opacity:1;} 80%{opacity:1;} 100%{opacity:0;top:60%;}}
-    canvas#scanPreview{width:100%;border-radius:16px;background:#000;}
+    .box{background:var(--panel);color:#111;width:100%;max-width:400px;border-radius:24px;overflow:hidden;box-shadow:var(--shadow);}
+    .boxContent{padding:24px;display:flex;flex-direction:column;gap:15px;}
+    .aiText{font-size:16px;line-height:1.5;font-weight:600;min-height:60px;}
+    .optBtn{width:100%;padding:12px;border-radius:12px;border:2px solid #ccc;background:#fff;font-weight:bold;cursor:pointer;}
+    .optBtn:active{background:var(--accent);}
+
+    /* 掃描預覽 */
+    canvas#scanPreview{width:100%;border-radius:16px;background:#000;display:block;}
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:120px;background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:999px;opacity:0;transition:0.3s;z-index:1000;}
+    .toast.show{opacity:1;}
   </style>
 </head>
 <body>
@@ -37,35 +55,52 @@
   <video id="camera" autoplay playsinline muted></video>
   <div id="overlay">
     <div style="display:flex;justify-content:space-between;">
-      <div class="pill"><strong>麻雀</strong> demo</div>
-      <div class="pill">線索 <strong id="clueCount">0</strong>/5 | 待掃 <strong id="pendingText">—</strong></div>
+      <div class="pill"><strong>麻雀</strong> 觀察計畫</div>
+      <div class="pill">線索 <strong id="clueCount">0</strong>/5 | AI 提示 <strong id="hintLeft">2</strong>/2</div>
     </div>
     <div class="birdCard">
-      <div id="birdCanvas" style="height:180px;display:flex;justify-content:center;align-items:center;font-size:50px;">🐣</div>
-      <div id="instructionText" class="dynamicHint">載入中...</div>
+      <div id="birdCanvas">
+        <svg viewBox="0 0 100 60" width="120" height="80">
+          <ellipse cx="50" cy="45" rx="40" ry="10" fill="rgba(255,255,255,0.2)" />
+          <circle cx="50" cy="30" r="20" fill="rgba(255,255,255,0.15)" stroke="white" stroke-dasharray="4 2" />
+          <text x="50" y="35" font-size="8" text-anchor="middle" fill="white" style="opacity:0.5">尚未拼裝</text>
+        </svg>
+      </div>
+      <div id="instructionText" class="instruction">請按下方按鈕開始</div>
     </div>
     <div class="bottom">
       <button id="btnFeed">餵鳥 (掉落線索)</button>
-      <button id="btnQuiz" disabled>開始辨認 (1/5)</button>
-      <button onclick="location.reload()" style="background:#444;color:#fff;">重置</button>
+      <button id="btnQuiz" disabled class="dark">開始辨認 (0/5)</button>
     </div>
   </div>
 
-  <div id="feedAnim">✨ 🪶 掉落線索卡！ ✨</div>
+  <div class="feedOverlay" id="feedOverlay">
+    <div class="feedCard">
+      <h3 style="margin:0">餵食中...</h3>
+      <div class="bowl"><div class="seed"></div></div>
+      <p style="font-size:14px;color:#666">正在掉落線索卡</p>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="guidanceModal">
+    <div class="box">
+      <div class="boxContent">
+        <div style="font-size:12px;color:#7a5200;font-weight:bold">✨ AI 助教引導</div>
+        <div class="aiText" id="aiText"></div>
+        <div id="aiOptions" style="display:flex;gap:10px;"></div>
+        <button id="btnGoScan" class="hidden" style="width:100%;background:#111;color:#fff;">知道了，去掃描！</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal hidden" id="scanModal">
-    <div class="box" style="padding:20px;">
-      <h3 id="scanTitle">掃描線索</h3>
-      <canvas id="scanPreview"></canvas>
-      <p id="scanHint" style="font-size:14px;color:#666;"></p>
-      <button onclick="closeScan()" style="width:100%;margin-top:10px;">取消</button>
-    </div>
-  </div>
-
-  <div class="modal hidden" id="quizModal">
-    <div class="box" style="padding:20px;">
-      <h3 id="quizTitle">辨認部位</h3>
-      <div id="quizOptions"></div>
+    <div class="box">
+      <div class="boxContent">
+        <h3 id="scanTitle" style="margin:0">掃描線索</h3>
+        <canvas id="scanPreview"></canvas>
+        <p id="scanHint" style="font-size:14px;background:#f0f0f0;padding:10px;border-radius:10px;"></p>
+        <button onclick="closeScan()">取消</button>
+      </div>
     </div>
   </div>
 
@@ -73,75 +108,118 @@
 </div>
 
 <script>
-const BIRDS = {
+const BIRD_DATA = {
   sparrow: {
-    name: "麻雀",
     parts: ["legs", "body", "wing", "tail", "head"],
-    hints: {
-      legs: "腳短短、偏褐色，走跳很靈活。",
-      body: "身體褐色，背上有深色條紋感。",
-      wing: "翅膀短圓，常見淡色翼帶。",
-      tail: "尾巴中等長度，末端偏平。",
-      head: "頭部素色棕，沒有白眼圈或項鍊斑。"
-    },
-    ai: {
-      legs: "觀察關鍵：這隻鳥的腳是褐色的，不是粉紅色喔！",
-      head: "觀察關鍵：注意眼睛周圍有沒有白色的一圈？"
+    guidance: {
+      legs: {
+        q: "這隻鳥要掉落『腳』的線索了！你覺得觀察腳，『顏色』還是『長短』比較容易分辨？",
+        a1: { t: "顏色", f: "沒錯！顏色是關鍵。這隻鳥腳是褐色的，快去找這張卡！" },
+        a2: { t: "長短", f: "長短也不錯，但顏色更有特色。它是褐色的，去找找看吧！" }
+      },
+      body: {
+        q: "要觀察『身體』了，你覺得應該注意『羽毛顏色』還是『鳥的重量』？",
+        a1: { t: "羽毛顏色", f: "正確！背部的條紋是重點。去找褐色條紋的身體吧！" },
+        a2: { t: "重量", f: "重量很難看出來喔！看羽毛條紋會更明顯，去找找看！" }
+      },
+      // ... 其他部位可依此類推增加
     }
   }
 };
 
-let state = { clues: [], pending: null, solved: [] };
-const bird = BIRDS.sparrow;
+let state = { clues: new Set(), pending: null, cameraOn: false };
 
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.innerText = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function typeWriter(el, text, callback) {
+  el.innerText = ""; let i = 0;
+  let timer = setInterval(() => {
+    if (i < text.length) { el.innerText += text.charAt(i); i++; }
+    else { clearInterval(timer); if(callback) callback(); }
+  }, 30);
 }
 
 async function startCamera() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     document.getElementById('camera').srcObject = stream;
+    state.cameraOn = true;
     updateUI();
-  } catch (e) { document.getElementById('instructionText').innerText = "⚠️ 請允許相機權限以進行掃描"; }
+  } catch (e) { showToast("無法啟動相機"); }
 }
 
 function updateUI() {
-  document.getElementById('clueCount').innerText = state.clues.length;
-  document.getElementById('pendingText').innerText = state.pending ? "有" : "—";
-  document.getElementById('btnQuiz').disabled = (state.clues.length < 5);
+  document.getElementById('clueCount').innerText = state.clues.size;
+  document.getElementById('btnQuiz').disabled = (state.clues.size < 5);
+  document.getElementById('btnQuiz').innerText = `開始辨認 (${state.clues.size}/5)`;
   
   const hint = document.getElementById('instructionText');
   if (state.pending) {
-    hint.innerHTML = `✅ 已掉落線索！請掃描 <strong>${state.pending}</strong> 卡片`;
-  } else if (state.clues.length < 5) {
+    hint.innerHTML = `✅ 請去掃描 <strong>${state.pending}</strong> 線索卡`;
+  } else if (state.clues.size < 5) {
     hint.innerText = "請按「餵鳥」開始獲取線索";
   } else {
-    hint.innerText = "線索已集滿！請按「開始辨認」";
+    hint.innerText = "線索已集滿！請開始辨認";
   }
 }
 
 document.getElementById('btnFeed').onclick = () => {
-  if (state.pending) return showToast("請先掃描目前的線索卡！");
-  const missing = bird.parts.filter(p => !state.clues.includes(p));
+  if (state.pending) return showToast("請先掃描目前的線索！");
+  const missing = BIRD_DATA.sparrow.parts.filter(p => !state.clues.has(p));
   if (missing.length === 0) return showToast("線索已集滿！");
   
   state.pending = missing[Math.floor(Math.random() * missing.length)];
-  const anim = document.getElementById('feedAnim');
-  anim.classList.add('show');
+  
+  // 1. 播放餵食動畫
+  document.getElementById('feedOverlay').classList.add('show');
   setTimeout(() => {
-    anim.classList.remove('show');
-    openScan();
-    updateUI();
-  }, 1000);
+    document.getElementById('feedOverlay').classList.remove('show');
+    // 2. 顯示 AI 引導
+    showAiGuidance(state.pending);
+  }, 1500);
 };
 
+function showAiGuidance(part) {
+  const modal = document.getElementById('guidanceModal');
+  const textEl = document.getElementById('aiText');
+  const optEl = document.getElementById('aiOptions');
+  const nextBtn = document.getElementById('btnGoScan');
+  const data = BIRD_DATA.sparrow.guidance[part] || { q: `準備去掃描 ${part} 吧！`, a1: { t: "好", f: "出發！" } };
+
+  modal.classList.remove('hidden');
+  optEl.innerHTML = "";
+  nextBtn.classList.add('hidden');
+
+  typeWriter(textEl, data.q, () => {
+    [data.a1, data.a2].forEach(a => {
+      if(!a) return;
+      const btn = document.createElement('button');
+      btn.className = "optBtn";
+      btn.innerText = a.t;
+      btn.onclick = () => {
+        optEl.innerHTML = "";
+        typeWriter(textEl, a.f, () => {
+          nextBtn.classList.remove('hidden');
+          nextBtn.onclick = () => {
+            modal.classList.add('hidden');
+            openScan();
+          };
+        });
+      };
+      optEl.appendChild(btn);
+    });
+  });
+}
+
 function openScan() {
+  if(!state.cameraOn) { startCamera(); return; }
   document.getElementById('scanModal').classList.remove('hidden');
   document.getElementById('scanTitle').innerText = `正在掃描：${state.pending}`;
-  document.getElementById('scanHint').innerText = bird.hints[state.pending];
+  document.getElementById('scanHint').innerText = "請將相機對準線索卡背面的 QR Code";
   requestAnimationFrame(scanLoop);
 }
 
@@ -157,35 +235,15 @@ function scanLoop() {
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imgData.data, imgData.width, imgData.height);
     if (code && code.data.includes(state.pending)) {
-      if (!state.clues.includes(state.pending)) state.clues.push(state.pending);
+      state.clues.add(state.pending);
       state.pending = null;
-      showToast("掃描成功！");
+      showToast("✅ 掃描成功！");
       closeScan();
       updateUI();
       return;
     }
   }
   if (!document.getElementById('scanModal').classList.contains('hidden')) requestAnimationFrame(scanLoop);
-}
-
-document.getElementById('btnQuiz').onclick = () => {
-  const part = bird.parts[state.solved.length];
-  document.getElementById('quizModal').classList.remove('hidden');
-  document.getElementById('quizTitle').innerText = `辨認部位：${part}`;
-  const options = ["正確選項", "錯誤選項 A", "錯誤選項 B"]; 
-  document.getElementById('quizOptions').innerHTML = options.map(o => `<div class="opt" onclick="checkQuiz('${o==='正確選項'}', '${part}')">${o}</div>`).join('');
-};
-
-function checkQuiz(isCorrect, part) {
-  if (isCorrect === 'true') {
-    state.solved.push(part);
-    showToast("回答正確！");
-    document.getElementById('quizModal').classList.add('hidden');
-    if (state.solved.length === 5) showToast("恭喜完成所有辨認！");
-    updateUI();
-  } else {
-    showToast(`不對喔！AI提示：${bird.ai[part] || "再觀察一下特徵"}`);
-  }
 }
 
 window.onload = startCamera;
