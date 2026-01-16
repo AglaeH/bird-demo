@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Bird Builder AR Demo</title>
 
-  <!-- QR decoder -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
@@ -101,6 +100,7 @@
       max-width:min(92vw,640px);
       text-align:center;
       line-height:1.3;
+      z-index: 100;
     }
     .toast.show{opacity:1;}
 
@@ -121,6 +121,7 @@
       box-shadow: var(--shadow);
       border:1px solid rgba(0,0,0,.08);
       overflow:hidden;
+      display:flex; flex-direction:column;
     }
     .boxHeader{
       display:flex;align-items:center;justify-content:space-between;
@@ -326,6 +327,25 @@
     }
     .aiPickBtn .small{font-size:12px;color:rgba(0,0,0,.55);margin-top:4px;}
     .aiPickNote{font-size:12px;color:var(--muted);line-height:1.45;}
+
+    /* Guide / Pre-scan Modal Styles */
+    .guideBtns{
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;
+    }
+    .guideBtn{
+      background:#fff;
+      border:2px solid rgba(0,0,0,.10);
+      border-radius:16px;
+      padding:16px 12px;
+      font-weight:900; font-size:16px;
+      color: var(--ink);
+      cursor:pointer;
+      text-align:center;
+    }
+    .guideBtn:active{ transform:scale(0.98); }
+    .guideBtn.correct{ background:rgba(46,125,50,.1); border-color:var(--good); color:var(--good); }
+    .guideBtn.wrong{ opacity:0.5; text-decoration:line-through; }
+
   </style>
 </head>
 
@@ -350,14 +370,13 @@
         <div class="birdCanvas" id="birdCanvas"></div>
         <div class="hintRow" id="clueChips"></div>
         <div style="font-size:12px;opacity:.92;text-align:center;line-height:1.35">
-          流程：<strong>餵鳥</strong> → 系統指定要掃哪張線索卡 → <strong>掃描線索卡</strong>（會顯示掃描畫面）→ 集滿 5 張線索 → <strong>開始辨認（1–5）</strong><br/>
+          流程：<strong>餵鳥</strong> → 系統指定部位 → <strong>AI 引導提問</strong> → 掃描線索卡 → 集滿 5 張線索 → <strong>開始辨認</strong><br/>
           答對一題：會先看到<strong>拼裝結果</strong>，再按「下一步」進入下一題。
         </div>
       </div>
 
       <div class="toast" id="toast"></div>
 
-      <!-- Feed animation overlay -->
       <div id="feedAnim" aria-hidden="true">
         <div class="feedCard">
           <div class="feedTitle">餵食中…</div>
@@ -383,7 +402,28 @@
     </div>
   </div>
 
-  <!-- QUIZ MODAL -->
+  <div class="modal hidden" id="guideModal">
+    <div class="box" style="max-width:600px;">
+      <div class="boxHeader">
+        <div class="title" id="guideTitle">AI 觀察引導</div>
+        <button class="xbtn" id="closeGuide">×</button>
+      </div>
+      <div class="content">
+        <div class="aiBox" id="guideAiText" style="min-height:80px;">AI 正在分析線索重點...</div>
+        
+        <div id="guideActions">
+          <div style="text-align:center;font-size:14px;color:var(--muted);margin-bottom:6px;">你覺得哪個觀察維度更關鍵？</div>
+          <div class="guideBtns" id="guideBtns"></div>
+        </div>
+
+        <div id="guideResult" class="hidden" style="display:flex;flex-direction:column;gap:10px;align-items:center;">
+          <div class="clueBox" id="guideRealClue" style="width:100%;text-align:center;font-weight:bold;"></div>
+          <button class="btnPrimary" id="btnStartScanFromGuide" style="width:100%;">開啟相機掃描</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal hidden" id="quizModal">
     <div class="box">
       <div class="boxHeader">
@@ -410,7 +450,6 @@
     </div>
   </div>
 
-  <!-- AI HINT MODAL (pick part -> answer) -->
   <div class="modal hidden" id="aiModal">
     <div class="box" style="max-width:720px;">
       <div class="boxHeader">
@@ -436,7 +475,6 @@
     </div>
   </div>
 
-  <!-- ASSEMBLE MODAL -->
   <div class="modal hidden" id="assembleModal">
     <div class="box">
       <div class="boxHeader">
@@ -454,7 +492,6 @@
     </div>
   </div>
 
-  <!-- REVEAL MODAL -->
   <div class="modal hidden" id="revealModal">
     <div class="box">
       <div class="boxHeader">
@@ -473,7 +510,6 @@
     </div>
   </div>
 
-  <!-- START CAMERA OVERLAY (iOS needs user gesture) -->
   <div class="modal hidden" id="startOverlay">
     <div class="box" style="max-width:560px;">
       <div class="boxHeader">
@@ -490,7 +526,6 @@
     </div>
   </div>
 
-  <!-- SCAN CLUE CARD OVERLAY -->
   <div class="modal hidden" id="scanOverlay">
     <div class="box" style="max-width:720px;">
       <div class="boxHeader">
@@ -523,7 +558,7 @@
 
 <script>
 /** ===========================
- *  0) Query params / storage
+ * 0) Query params / storage
  * =========================== */
 const qs = new URLSearchParams(location.search);
 const CLAIM = qs.get("claim");                 // fallback: if external scanner opens link
@@ -535,7 +570,7 @@ const STORAGE_KEY = (birdKey)=>`bbdemo:state:${birdKey}`;
 const deepClone = (o)=>JSON.parse(JSON.stringify(o));
 
 /** ===========================
- *  1) Steps fixed 1–5
+ * 1) Steps fixed 1–5
  * =========================== */
 const STEPS = [
   { key:"legs", label:"腳" },
@@ -546,7 +581,7 @@ const STEPS = [
 ];
 
 /** ===========================
- *  2) Option SVG library
+ * 2) Option SVG library
  * =========================== */
 function svgWrap(inner){ return `
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -637,7 +672,7 @@ const OPTION_LIB = {
 };
 
 /** ===========================
- *  3) Bird content (5 birds)
+ * 3) Bird content (5 birds)
  * =========================== */
 const BIRDS = {
   sparrow: {
@@ -777,7 +812,7 @@ const birdKey = BIRD_PARAM;
 const bird = getBirdByKey(birdKey);
 
 /** ===========================
- *  4) State + persistence
+ * 4) State + persistence
  * =========================== */
 const DEFAULT_STATE = {
   clues: {},
@@ -809,7 +844,7 @@ function resetState(){
 }
 
 /** ===========================
- *  5) DOM helpers
+ * 5) DOM helpers
  * =========================== */
 const $ = (id)=>document.getElementById(id);
 
@@ -843,6 +878,15 @@ const aiText = $("aiText");
 const closeAi = $("closeAi");
 const aiOk = $("aiOk");
 
+const guideModal = $("guideModal");
+const guideTitle = $("guideTitle");
+const guideAiText = $("guideAiText");
+const guideBtns = $("guideBtns");
+const guideResult = $("guideResult");
+const guideRealClue = $("guideRealClue");
+const btnStartScanFromGuide = $("btnStartScanFromGuide");
+const closeGuide = $("closeGuide");
+
 const assembleModal = $("assembleModal");
 const assembleTitle = $("assembleTitle");
 const assembleTag = $("assembleTag");
@@ -873,7 +917,7 @@ const scanPreview = $("scanPreview");
 const scanPctx = scanPreview.getContext("2d", { willReadFrequently:true });
 
 /** ===========================
- *  6) Toast
+ * 6) Toast
  * =========================== */
 let toastTimer = 0;
 function showToast(msg, ms=2600){
@@ -884,7 +928,7 @@ function showToast(msg, ms=2600){
 }
 
 /** ===========================
- *  7) Camera
+ * 7) Camera
  * =========================== */
 async function startCamera(silent=false){
   try{
@@ -906,7 +950,7 @@ async function startCamera(silent=false){
 }
 
 /** ===========================
- *  8) Render chips / counters
+ * 8) Render chips / counters
  * =========================== */
 function renderChips(){
   elClueChips.innerHTML = "";
@@ -927,14 +971,14 @@ function renderCounters(){
   elPendingText.textContent = state.pendingPart ? STEPS.find(s=>s.key===state.pendingPart).label : "—";
 
   btnQuiz.disabled = (count < 5) || !!state.pendingPart;
-  btnScan.disabled = !state.pendingPart;
+  btnScan.disabled = !state.pendingPart; // Enable Scan button if there is a pending part
 
   const nextIdx = Math.max(0, STEPS.findIndex(s=>!state.solved[s.key]));
   btnQuiz.textContent = `開始辨認（${Math.min(nextIdx+1,5)}/5）`;
 }
 
 /** ===========================
- *  9) Bird render + assemble animation
+ * 9) Bird render + assemble animation
  * =========================== */
 function renderBird(assembled){
   const pal = bird.palette;
@@ -1077,12 +1121,13 @@ function grantClue(part){
 }
 
 /** ===========================
- * 13) Feed bird (drop => pendingPart)
+ * 13) Feed bird (drop => pendingPart) -> Start Guide
  * =========================== */
 function feedBird(){
   if(state.pendingPart){
+    // Already has a part, just replay anim and open guide
     playFeedAnim(state.pendingPart);
-    setTimeout(()=>openScan(), 980);
+    setTimeout(()=>startPreScanGuide(state.pendingPart), 980);
     return;
   }
 
@@ -1104,10 +1149,95 @@ function feedBird(){
   showToast(`掉落線索：請找「${bird.name}｜${targetLabel}」線索卡`);
 
   setTimeout(()=>{
-    openScan();
-    const guide = getGuideText(part);
-    setScanMessage(`請找線索卡中符合「${guide}」的小鳥，並掃背面 QR。`, "info");
+    startPreScanGuide(part);
   }, 980);
+}
+
+/** ===========================
+ * 13.5) Pre-Scan Guide Logic (NEW)
+ * =========================== */
+function analyzeDimension(clueText) {
+  // Simple heuristic: check for Color vs Shape keywords
+  const colors = ["紅","粉","黑","綠","褐","白","色","亮"];
+  const shapes = ["圓","尖","叉","方","長","短","細","粗","形","狀"];
+  
+  let cCount = 0;
+  let sCount = 0;
+  
+  colors.forEach(k => { if(clueText.includes(k)) cCount++; });
+  shapes.forEach(k => { if(clueText.includes(k)) sCount++; });
+
+  // Bias slightly to shape if equal, or random? Let's favor explicit match.
+  if (cCount > sCount) return { type: "color", label: "顏色", wrong: "形狀" };
+  if (sCount > cCount) return { type: "shape", label: "形狀", wrong: "顏色" };
+  // Fallback if neither detected strongly, pick random based on part
+  return { type: "shape", label: "形狀", wrong: "顏色" };
+}
+
+function startPreScanGuide(partKey) {
+  const step = STEPS.find(s=>s.key===partKey);
+  const label = step.label;
+  const clue = getGuideText(partKey);
+  
+  // Reset UI
+  guideTitle.textContent = `AI 觀察引導：${label}`;
+  guideAiText.textContent = `準備尋找「${bird.name}」的${label}囉！`;
+  guideBtns.innerHTML = "";
+  guideResult.classList.add("hidden");
+  guideRealClue.textContent = "";
+  guideModal.classList.remove("hidden");
+
+  // Determine dimension
+  const dim = analyzeDimension(clue);
+  
+  // After a brief pause, show question
+  setTimeout(() => {
+    typeText(guideAiText, `要找${label}了！你覺得觀察「${dim.label}」還是「${dim.wrong}」更有利於辨認？`, 20);
+    
+    // Create Buttons (Randomize order)
+    const btnCorrect = document.createElement("div");
+    btnCorrect.className = "guideBtn";
+    btnCorrect.textContent = dim.label;
+    btnCorrect.onclick = () => handleGuideAnswer(true, dim, clue);
+
+    const btnWrong = document.createElement("div");
+    btnWrong.className = "guideBtn";
+    btnWrong.textContent = dim.wrong; // The distractor
+    btnWrong.onclick = () => handleGuideAnswer(false, dim, clue);
+
+    const btns = Math.random() > 0.5 ? [btnCorrect, btnWrong] : [btnWrong, btnCorrect];
+    btns.forEach(b => guideBtns.appendChild(b));
+  }, 600);
+}
+
+function handleGuideAnswer(isCorrect, dim, clueText) {
+  // Disable buttons
+  [...guideBtns.children].forEach(btn => btn.style.pointerEvents = "none");
+  
+  if(isCorrect) {
+    // Correct
+    [...guideBtns.children].forEach(btn => {
+      if(btn.textContent === dim.label) btn.classList.add("correct");
+    });
+    typeText(guideAiText, `沒錯！觀察「${dim.label}」是關鍵！\n這是這隻鳥的特徵線索，請記住它並掃描圖卡：`, 15);
+  } else {
+    // Wrong
+    [...guideBtns.children].forEach(btn => {
+      if(btn.textContent === dim.wrong) btn.classList.add("wrong");
+      if(btn.textContent === dim.label) btn.classList.add("correct");
+    });
+    typeText(guideAiText, `其實「${dim.wrong}」也重要，但這隻鳥的「${dim.label}」特徵更明顯喔！\n請看這個線索，並找出對應的圖卡：`, 15);
+  }
+
+  // Show clue and scan button
+  setTimeout(() => {
+    guideResult.classList.remove("hidden");
+    guideRealClue.textContent = `「${clueText}」`;
+  }, 1500);
+}
+
+function closeGuideModal() {
+  guideModal.classList.add("hidden");
 }
 
 /** ===========================
@@ -1117,6 +1247,7 @@ let scanning = false;
 let scanRaf = 0;
 let scanCooldownUntil = 0;
 let lastScanMsgAt = 0;
+let scanErrorPause = false; // Flag to pause scan loop during error modal
 
 const offCanvas = document.createElement("canvas");
 const offCtx = offCanvas.getContext("2d", { willReadFrequently: true });
@@ -1138,6 +1269,10 @@ function openScan(){
     showToast("目前沒有待掃部位：請先餵鳥");
     return;
   }
+  
+  // Close Guide if open
+  closeGuideModal();
+
   if(typeof jsQR !== "function"){
     showToast("掃描功能載入失敗：請重新整理");
     return;
@@ -1152,6 +1287,7 @@ function openScan(){
 
   scanOverlay.classList.remove("hidden");
   scanning = true;
+  scanErrorPause = false;
   scanCooldownUntil = 0;
   scanLoop();
 }
@@ -1163,7 +1299,6 @@ function closeScan(){
 }
 
 function drawReticle(ctx, w, h, color="rgba(240,193,75,.9)"){
-  // 置中掃描框（不做挖洞遮罩，避免黑框）
   const boxW = Math.round(w * 0.62);
   const boxH = Math.round(h * 0.52);
   const x = Math.round((w - boxW)/2);
@@ -1174,7 +1309,6 @@ function drawReticle(ctx, w, h, color="rgba(240,193,75,.9)"){
   ctx.strokeStyle = color;
   ctx.lineWidth = 4;
 
-  // 角落框
   function corner(x1,y1,dirX,dirY){
     ctx.beginPath();
     ctx.moveTo(x1, y1 + dirY*r);
@@ -1187,7 +1321,6 @@ function drawReticle(ctx, w, h, color="rgba(240,193,75,.9)"){
   corner(x, y+boxH, 1, -1);
   corner(x+boxW, y+boxH, -1, -1);
 
-  // 掃描線（只畫在框內）
   const t = (Date.now()%1200)/1200;
   const lineY = y + Math.round(t * boxH);
 
@@ -1218,6 +1351,10 @@ function drawQrBox(ctx, loc){
 
 function scanLoop(){
   if(!scanning) return;
+  if(scanErrorPause) {
+     scanRaf = requestAnimationFrame(scanLoop);
+     return; // Pause scanning logic but keep loop alive if needed, or just return
+  }
 
   const video = $("camera");
   const vw = video.videoWidth || 0;
@@ -1264,8 +1401,8 @@ function scanLoop(){
           setTimeout(()=>closeScan(), 500);
           return;
         }else if(result === "wrong"){
-          scanBadge.textContent = "掃描到 QR，但不符合";
-          scanCooldownUntil = now + 1200;
+          scanBadge.textContent = "掃描到但錯誤";
+          scanCooldownUntil = now + 2000; 
         }
       }else{
         scanBadge.textContent = "掃描中…";
@@ -1281,6 +1418,38 @@ function scanLoop(){
   scanRaf = requestAnimationFrame(scanLoop);
 }
 
+function showScanErrorModal(scannedBirdKey, scannedPartKey) {
+  scanErrorPause = true; // Pause scanning
+  
+  // Use Guide Modal for Error explanation
+  guideTitle.textContent = "AI 特徵比對（掃錯囉）";
+  guideBtns.innerHTML = "";
+  guideResult.classList.remove("hidden");
+  guideRealClue.textContent = "";
+  guideModal.classList.remove("hidden");
+  
+  const targetPart = state.pendingPart;
+  const targetGuide = getGuideText(targetPart);
+  
+  // Get scanned clue text if possible
+  const scannedBird = BIRDS[scannedBirdKey] || {};
+  const scannedPool = scannedBird.cluePool?.[scannedPartKey] || [];
+  const scannedText = scannedPool[0] || "不明特徵";
+  const scannedBirdName = scannedBird.name || "不明鳥類";
+
+  const msg = `你掃到了「${scannedBirdName}」！\n這張卡片特徵是「${scannedText}」。\n\n但我們需要的是：\n「${targetGuide}」\n\n請仔細比較兩者的差異再試試看！`;
+  
+  typeText(guideAiText, msg, 10);
+  guideRealClue.textContent = `目標：${targetGuide}`;
+  
+  btnStartScanFromGuide.textContent = "知道了，繼續掃描";
+  btnStartScanFromGuide.onclick = () => {
+    guideModal.classList.add("hidden");
+    scanErrorPause = false; // Resume
+    scanCooldownUntil = Date.now() + 1000;
+  };
+}
+
 function handleScannedText(text){
   let url;
   try{ url = new URL(text); }catch(e){ return "ignore"; }
@@ -1289,36 +1458,19 @@ function handleScannedText(text){
   const claim = url.searchParams.get("claim");
 
   if(!claim){
-    setScanMessage("這張卡不是線索卡（找不到 claim），請再觀察看看。", "bad");
-    showToast("不是線索卡 QR，請再觀察看看。");
-    return "wrong";
+    return "ignore"; // Not a game card
   }
 
   const targetPart = state.pendingPart;
+  
+  // Requirement 3: Detailed comparison if wrong bird or wrong part
+  if((b && b !== birdKey) || (claim !== targetPart)){
+     // Trigger the detailed error modal
+     showScanErrorModal(b, claim);
+     return "wrong";
+  }
+
   const targetLabel = STEPS.find(s=>s.key===targetPart).label;
-  const guide = getGuideText(targetPart);
-
-  if(b && b !== birdKey){
-    const msg = `這不是「${bird.name}」的線索卡喔，再觀察看看。\n\n「${bird.name}｜${targetLabel}」的特徵是：\n「${guide}」`;
-    setScanMessage(msg, "bad");
-    showToast(`不是「${bird.name}」的線索卡，再試一次。`, 3200);
-    return "wrong";
-  }
-
-  if(!targetPart){
-    const msg = "請先按「餵鳥（掉落線索）」讓系統指定要掃的部位。";
-    setScanMessage(msg, "bad");
-    showToast("請先餵鳥讓系統指定待掃部位。", 2600);
-    return "wrong";
-  }
-
-  if(claim !== targetPart){
-    const msg = `這不是「${bird.name}」的「${targetLabel}」喔，再觀察看看。\n\n「${bird.name}｜${targetLabel}」的特徵是：\n「${guide}」`;
-    setScanMessage(msg, "bad");
-    showToast(`不是「${bird.name}」的「${targetLabel}」，再試一次。`, 3200);
-    return "wrong";
-  }
-
   grantClue(claim);
   setScanMessage(`✅ 獲得線索：「${bird.name}｜${targetLabel}」`, "ok");
   showToast(`獲得線索：${targetLabel}`);
@@ -1676,9 +1828,17 @@ function init(){
   closeStartOverlay.addEventListener("click", ()=> startOverlay.classList.add("hidden"));
 
   btnFeed.addEventListener("click", feedBird);
-  btnScan.addEventListener("click", openScan);
+  
+  // Adjusted: btnScan triggers Guide if pending
+  btnScan.addEventListener("click", ()=>{
+    if(state.pendingPart) startPreScanGuide(state.pendingPart);
+  });
+  
   btnStopScan.addEventListener("click", closeScan);
   btnStopScan2.addEventListener("click", closeScan);
+
+  btnStartScanFromGuide.addEventListener("click", openScan);
+  closeGuide.addEventListener("click", closeGuideModal);
 
   btnQuiz.addEventListener("click", openQuiz);
 
