@@ -113,14 +113,12 @@
       z-index:50;
     }
     
-    /* FIX: Make guideModal higher than scanOverlay (50) 
-       so it pops up OVER the frozen scanner view 
-    */
+    /* FIX: Make guideModal higher than scanOverlay (50) */
     #guideModal {
       z-index: 60; 
     }
 
-    .hidden{display:none;}
+    .hidden{display:none !important;}
     .box{
       width:min(780px,96vw);
       background:var(--panel);
@@ -901,6 +899,7 @@ const guideResult = $("guideResult");
 const guideRealClue = $("guideRealClue");
 const btnStartScanFromGuide = $("btnStartScanFromGuide");
 const closeGuide = $("closeGuide");
+const guideActions = $("guideActions"); // For toggling hidden in error
 
 const assembleModal = $("assembleModal");
 const assembleTitle = $("assembleTitle");
@@ -1201,6 +1200,9 @@ function startPreScanGuide(partKey) {
   guideResult.classList.add("hidden");
   guideRealClue.textContent = "";
   guideModal.classList.remove("hidden");
+  
+  // Ensure actions are visible for guide
+  guideActions.classList.remove("hidden");
 
   // Determine dimension
   const dim = analyzeDimension(clue);
@@ -1411,10 +1413,7 @@ function scanLoop(){
       const code = jsQR(img.data, outW, outH, { inversionAttempts: "dontInvert" });
 
       if(code && code.data){
-        // Pre-draw QR box (will color it in handleScannedText check if needed or here)
-        // We will delegate drawing color logic to handleScannedText return
-        // But handleScannedText runs logic. Let's do a quick check.
-        
+        // Logic handled in handleScannedText
         const result = handleScannedText(code.data);
         if(result === "success"){
           drawQrBox(scanPctx, code.location, "rgba(46,125,50,.95)"); // Green
@@ -1462,17 +1461,34 @@ function showScanErrorModal(scannedBirdKey, scannedPartKey) {
   guideRealClue.textContent = "";
   guideModal.classList.remove("hidden");
   
+  // Hide guide actions (the buttons) in Error mode
+  guideActions.classList.add("hidden");
+  
   const targetPart = state.pendingPart;
   const targetGuide = getGuideText(targetPart);
+  const targetLabel = STEPS.find(s=>s.key===targetPart)?.label || "未知部位";
   
   // Get scanned clue text if possible
   const scannedBird = BIRDS[scannedBirdKey] || {};
   const scannedPool = scannedBird.cluePool?.[scannedPartKey] || [];
   const scannedText = scannedPool[0] || "不明特徵";
-  const scannedBirdName = scannedBird.name || "這張卡";
+  const scannedBirdName = scannedBird.name || "不明鳥類";
+  const scannedPartLabel = STEPS.find(s=>s.key===scannedPartKey)?.label || "不明部位";
 
   // Contrastive Persuasion Message
-  const msg = `這張卡片（${scannedBirdName}）展示的是『${scannedText}』\n\n但我們的線索說這隻鳥是：\n『${targetGuide}』\n\n請仔細觀察兩者的差異！`;
+  let msg = "";
+
+  // CASE 1: Wrong Part (Correct Bird)
+  if (scannedBirdKey === birdKey && scannedPartKey !== targetPart) {
+     msg = `你掃到了「${scannedPartLabel}」！\n但我們現在系統指定要找的是：「${targetLabel}」喔！\n\n這張卡顯示：${scannedText}`;
+  } 
+  // CASE 2: Wrong Bird
+  else {
+     msg = `這張卡片是「${scannedBirdName}」！\n但我們要找的是「${bird.name}」！\n\n這張卡特徵：${scannedText}`;
+  }
+  
+  // Append target expectation
+  msg += `\n\n請再找找符合以下描述的卡片：\n『${targetGuide}』`;
   
   typeText(guideAiText, msg, 10);
   
@@ -1486,6 +1502,10 @@ function showScanErrorModal(scannedBirdKey, scannedPartKey) {
 }
 
 function handleScannedText(text){
+  // Fix Race Condition: If pendingPart is null, we likely already succeeded in a previous frame
+  // but scan loop hasn't closed yet. Just return success to prevent error modal.
+  if(!state.pendingPart) return "success";
+
   let url;
   try{ url = new URL(text); }catch(e){ return "ignore"; }
 
