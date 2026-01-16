@@ -104,7 +104,7 @@
     }
     .toast.show{opacity:1;}
 
-    /* Modal */
+    /* Modal - Default Z-index is 50 */
     .modal{
       position:absolute;inset:0;
       background:rgba(0,0,0,.55);
@@ -112,6 +112,14 @@
       padding:14px;
       z-index:50;
     }
+    
+    /* FIX: Make guideModal higher than scanOverlay (50) 
+       so it pops up OVER the frozen scanner view 
+    */
+    #guideModal {
+      z-index: 60; 
+    }
+
     .hidden{display:none;}
     .box{
       width:min(780px,96vw);
