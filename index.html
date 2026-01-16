@@ -314,32 +314,28 @@
       padding:12px;
       line-height:1.45;
       width:100%;
-      min-height:120px;
+      min-height:100px;
       white-space:pre-wrap;
     }
 
-    /* AI pick panel */
-    .aiPickTitle{font-weight:900;font-size:16px;}
-    .aiPickGrid{
-      display:grid;
-      grid-template-columns:repeat(2, 1fr);
-      gap:10px;
+    /* AI Options Area */
+    .aiOptions{
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px;
     }
-    .aiPickBtn{
+    .aiOptBtn{
       background:#fff;
-      border:2px solid rgba(0,0,0,.10);
+      border:2px solid rgba(0,0,0,.12);
       border-radius:16px;
       padding:12px;
+      font-weight:900;
+      font-size:15px;
+      color: var(--ink);
       cursor:pointer;
-      text-align:left;
-      box-shadow:none;
+      text-align:center;
+      transition:transform .1s, background .1s;
     }
-    .aiPickBtn.active{
-      border-color:rgba(240,193,75,.85);
-      background:rgba(240,193,75,.18);
-    }
-    .aiPickBtn .small{font-size:12px;color:rgba(0,0,0,.55);margin-top:4px;}
-    .aiPickNote{font-size:12px;color:var(--muted);line-height:1.45;}
+    .aiOptBtn:active{transform:scale(0.98);}
+    .aiOptBtn:hover{background:var(--panel2);}
 
     /* Guide / Pre-scan Modal Styles */
     .guideBtns{
@@ -486,18 +482,12 @@
       </div>
 
       <div class="content">
-        <div id="aiPickPanel">
-          <div class="aiPickTitle">你想問哪個部位的提示？</div>
-          <div class="aiPickGrid" id="aiPickGrid"></div>
-          <div class="aiPickNote">選完部位後，AI 只會提示「要看什麼」，不會直接告訴你正確答案。</div>
-        </div>
+        <div class="aiBox" id="aiText"></div>
+        
+        <div class="aiOptions" id="aiOptions" style="display:none"></div>
 
-        <div id="aiAnswerPanel" class="hidden">
-          <div class="aiBox" id="aiText"></div>
-        </div>
-
-        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-          <button class="btnSmall btnGhost" id="aiOk">知道了</button>
+        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;">
+          <button class="btnSmall btnGhost" id="aiOk">關閉</button>
         </div>
       </div>
     </div>
@@ -907,6 +897,7 @@ const aiModal = $("aiModal");
 const aiText = $("aiText");
 const closeAi = $("closeAi");
 const aiOk = $("aiOk");
+const aiOptions = $("aiOptions");
 
 const guideModal = $("guideModal");
 const guideTitle = $("guideTitle");
@@ -916,7 +907,7 @@ const guideResult = $("guideResult");
 const guideRealClue = $("guideRealClue");
 const btnStartScanFromGuide = $("btnStartScanFromGuide");
 const closeGuide = $("closeGuide");
-const guideActions = $("guideActions"); // For toggling hidden in error
+const guideActions = $("guideActions"); 
 
 const assembleModal = $("assembleModal");
 const assembleTitle = $("assembleTitle");
@@ -1775,77 +1766,107 @@ function renderAssembleBirdSVG(){
 }
 
 /** ===========================
- * 17) AI hint (picker -> typing)
+ * 17) Interactive AI Hint Logic
  * =========================== */
 let typingTimer = 0;
 
-function openAiPicker(){
+function startAiDialogue(){
   if(state.hintLeft <= 0){
     showToast("AI 提示已用完");
     return;
   }
+
+  // Identify current context
+  const partKey = STEPS[state.currentStep].key;
+  const label = STEPS[state.currentStep].label;
+
+  // Prepare Data
+  const hintData = getInteractiveHintData(partKey);
+
+  // Setup Modal UI
   aiModal.classList.remove("hidden");
-  $("aiPickPanel").classList.remove("hidden");
-  $("aiAnswerPanel").classList.add("hidden");
-  aiText.textContent = "";
-  clearInterval(typingTimer);
+  aiOptions.style.display = "none";
+  aiOptions.innerHTML = "";
+  aiOk.textContent = "取消";
 
-  const grid = $("aiPickGrid");
-  grid.innerHTML = "";
-  const curKey = STEPS[state.currentStep]?.key;
+  // Type Question
+  typeText(aiText, hintData.question, 15);
 
-  STEPS.forEach((s, idx)=>{
-    const btn = document.createElement("button");
-    btn.className = "aiPickBtn" + (s.key===curKey ? " active" : "");
-    btn.type = "button";
-    btn.innerHTML = `<div style="font-weight:900">${idx+1}｜${s.label}</div><div class="small">點我詢問</div>`;
-    btn.addEventListener("click", ()=> openAiHint(s.key));
-    grid.appendChild(btn);
-  });
+  // Create Options (After slight delay or immediately)
+  setTimeout(() => {
+    aiOptions.style.display = "grid";
+    // Shuffle options
+    hintData.options.sort(() => Math.random() - 0.5);
+    
+    hintData.options.forEach(opt => {
+      const btn = document.createElement("div");
+      btn.className = "aiOptBtn";
+      btn.textContent = opt.text;
+      btn.onclick = () => handleAiChoice(opt, hintData.strategy);
+      aiOptions.appendChild(btn);
+    });
+  }, 1000);
 }
 
-function openAiHint(partKey){
-  if(state.hintLeft <= 0){
-    showToast("AI 提示已用完");
-    return;
-  }
-
-  const step = STEPS.find(s=>s.key===partKey) || STEPS[state.currentStep];
-  const label = step.label;
-
-  // 扣次數（在真正生成回答時才扣）
+function handleAiChoice(option, strategyLines){
+  // Disable buttons
+  aiOptions.style.display = "none";
+  
+  // Deduct hint
   state.hintLeft -= 1;
   saveState();
   renderCounters();
 
-  $("aiPickPanel").classList.add("hidden");
-  $("aiAnswerPanel").classList.remove("hidden");
+  let msg = "";
+  const strategies = strategyLines.join("\n");
 
-  const clue = state.clues[partKey]?.text || getGuideText(partKey);
-  const bullets = bird.ai?.[partKey] || ["把線索拆成『顏色/形狀/有無記號』三個觀察點。"];
+  if(option.isCorrect){
+    msg = `沒錯！「${option.text}」是關鍵特徵！\n\nAI 建議觀察步驟：\n${strategies}`;
+  } else {
+    // Find correct one contextually (hacky but works for demo)
+    // Actually we can just give general guidance
+    msg = `其實...這隻鳥的特徵是偏向另一種喔。\n\nAI 建議觀察步驟：\n${strategies}`;
+  }
 
-  const text =
-`AI 助教：我先把你的線索拆成「可以看的重點」——
-
-【你詢問的部位】${MYSTERY_NAME}｜${label}
-【可用線索】「${clue}」
-
-建議觀察步驟：
-- ${bullets[0]}
-- ${bullets[1] || "先排除明顯不符的選項，再比較剩下兩個。"}
-${bullets[2] ? "- " + bullets[2] : ""}
-
-小提醒：提示不會告訴你正確答案，只會把「要看什麼」說清楚。`;
-
-  typeText(aiText, text, 12);
+  typeText(aiText, msg, 10);
+  aiOk.textContent = "知道了";
 }
+
+function getInteractiveHintData(partKey) {
+  const correctKey = bird.quiz[partKey].correct;
+  const correctLabel = OPTION_LIB[partKey][correctKey].label; 
+  
+  // Get a wrong option for distractor
+  const allOpts = bird.quiz[partKey].options;
+  const wrongKey = allOpts.find(k => k !== correctKey) || allOpts[0];
+  const wrongLabel = OPTION_LIB[partKey][wrongKey].label;
+
+  // Simple extraction of keyword (e.g. "粉紅腳" -> "粉紅色")
+  // For demo simplicity, just use the label or manual mapping if needed.
+  // Here we use the label directly which is usually distinct enough.
+
+  return {
+    question: `關於${MYSTERY_NAME}的「${STEPS.find(s=>s.key===partKey).label}」，你還記得線索中提到的重點嗎？`,
+    options: [
+      { text: correctLabel, isCorrect: true },
+      { text: wrongLabel, isCorrect: false },
+      { text: "忘記了 / 我想看提示", isCorrect: false }
+    ],
+    strategy: bird.ai[partKey] || ["仔細觀察顏色", "比較形狀差異"]
+  };
+}
+
+// Hook up button
+btnHintQuiz.addEventListener("click", startAiDialogue);
+
+// Close handler
+closeAi.addEventListener("click", closeAiModal);
+aiOk.addEventListener("click", closeAiModal);
 
 function closeAiModal(){
   aiModal.classList.add("hidden");
   clearInterval(typingTimer);
   aiText.textContent = "";
-  $("aiPickPanel").classList.remove("hidden");
-  $("aiAnswerPanel").classList.add("hidden");
 }
 
 function typeText(el, text, speedMs=14){
@@ -1967,11 +1988,6 @@ function init(){
 
   closeQuiz.addEventListener("click", closeQuizModal);
   btnCloseQuiz2.addEventListener("click", closeQuizModal);
-
-  // AI: picker first
-  btnHintQuiz.addEventListener("click", openAiPicker);
-  closeAi.addEventListener("click", closeAiModal);
-  aiOk.addEventListener("click", closeAiModal);
 
   closeAssemble.addEventListener("click", closeAssembleModal);
   btnAssembleNext.addEventListener("click", assembleNext);
