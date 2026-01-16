@@ -220,6 +220,10 @@
       border:1px solid rgba(0,0,0,.10);
       background:#000;
       position:relative;
+      transition: border-color 0.2s;
+    }
+    .scanPreviewBox.error{
+      border:2px solid #c62828; /* Red border on error */
     }
     canvas#scanPreview{width:100%;height:auto;display:block;}
     .scanBadge{
@@ -232,6 +236,9 @@
       font-size:12px;
       border:1px solid rgba(255,255,255,.16);
       backdrop-filter: blur(8px);
+    }
+    .scanBadge.error{
+      background: rgba(198,40,40,.85);
     }
 
     /* Feed animation (seed drop overlay) */
@@ -534,7 +541,7 @@
       </div>
       <div class="content">
         <div class="scanWrap">
-          <div class="scanPreviewBox">
+          <div class="scanPreviewBox" id="scanPreviewBox">
             <div class="scanBadge" id="scanBadge">掃描中…</div>
             <canvas id="scanPreview" width="960" height="540"></canvas>
           </div>
@@ -908,6 +915,7 @@ const btnStartCameraNow = $("btnStartCameraNow");
 const closeStartOverlay = $("closeStartOverlay");
 
 const scanOverlay = $("scanOverlay");
+const scanPreviewBox = $("scanPreviewBox");
 const scanHintText = $("scanHintText");
 const scanNeedText = $("scanNeedText");
 const scanBadge = $("scanBadge");
@@ -1167,7 +1175,6 @@ function analyzeDimension(clueText) {
   colors.forEach(k => { if(clueText.includes(k)) cCount++; });
   shapes.forEach(k => { if(clueText.includes(k)) sCount++; });
 
-  // Bias slightly to shape if equal, or random? Let's favor explicit match.
   if (cCount > sCount) return { type: "color", label: "顏色", wrong: "形狀" };
   if (sCount > cCount) return { type: "shape", label: "形狀", wrong: "顏色" };
   // Fallback if neither detected strongly, pick random based on part
@@ -1281,6 +1288,8 @@ function openScan(){
   const targetLabel = STEPS.find(s=>s.key===state.pendingPart).label;
   scanNeedText.textContent = `${bird.name}｜${targetLabel}`;
   scanBadge.textContent = "掃描中…";
+  scanBadge.classList.remove("error");
+  scanPreviewBox.classList.remove("error");
 
   const guide = getGuideText(state.pendingPart);
   setScanMessage(`請找線索卡中符合「${guide}」的小鳥，並掃背面 QR。`, "info");
@@ -1328,16 +1337,16 @@ function drawReticle(ctx, w, h, color="rgba(240,193,75,.9)"){
   ctx.rect(x, y, boxW, boxH);
   ctx.clip();
 
-  ctx.fillStyle = "rgba(240,193,75,.45)";
+  ctx.fillStyle = color === "#c62828" ? "rgba(198,40,40,.25)" : "rgba(240,193,75,.45)";
   ctx.fillRect(x, lineY, boxW, 3);
 
   ctx.restore();
 }
 
-function drawQrBox(ctx, loc){
+function drawQrBox(ctx, loc, color="rgba(46,125,50,.95)"){
   if(!loc) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(46,125,50,.95)";
+  ctx.strokeStyle = color;
   ctx.lineWidth = 5;
   ctx.beginPath();
   ctx.moveTo(loc.topLeftCorner.x, loc.topLeftCorner.y);
@@ -1353,7 +1362,7 @@ function scanLoop(){
   if(!scanning) return;
   if(scanErrorPause) {
      scanRaf = requestAnimationFrame(scanLoop);
-     return; // Pause scanning logic but keep loop alive if needed, or just return
+     return; // Pause scanning logic but keep loop alive
   }
 
   const video = $("camera");
@@ -1385,6 +1394,7 @@ function scanLoop(){
     offCanvas.height = outH;
     offCtx.drawImage(scanPreview, 0, 0);
 
+    // Default reticle color
     drawReticle(scanPctx, outW, outH);
 
     const now = Date.now();
@@ -1393,19 +1403,35 @@ function scanLoop(){
       const code = jsQR(img.data, outW, outH, { inversionAttempts: "dontInvert" });
 
       if(code && code.data){
-        drawQrBox(scanPctx, code.location);
-
+        // Pre-draw QR box (will color it in handleScannedText check if needed or here)
+        // We will delegate drawing color logic to handleScannedText return
+        // But handleScannedText runs logic. Let's do a quick check.
+        
         const result = handleScannedText(code.data);
         if(result === "success"){
+          drawQrBox(scanPctx, code.location, "rgba(46,125,50,.95)"); // Green
           scanBadge.textContent = "讀取成功";
+          scanBadge.classList.remove("error");
           setTimeout(()=>closeScan(), 500);
           return;
         }else if(result === "wrong"){
+          // Draw RED box immediately before pausing
+          drawQrBox(scanPctx, code.location, "#c62828"); // Red
+          drawReticle(scanPctx, outW, outH, "#c62828"); // Red reticle too
+
           scanBadge.textContent = "掃描到但錯誤";
+          scanBadge.classList.add("error");
+          scanPreviewBox.classList.add("error");
+          
           scanCooldownUntil = now + 2000; 
+        } else {
+           // Ignore
+           drawQrBox(scanPctx, code.location, "rgba(46,125,50,.95)");
         }
       }else{
         scanBadge.textContent = "掃描中…";
+        scanBadge.classList.remove("error");
+        scanPreviewBox.classList.remove("error");
       }
     }
   }
@@ -1435,17 +1461,18 @@ function showScanErrorModal(scannedBirdKey, scannedPartKey) {
   const scannedBird = BIRDS[scannedBirdKey] || {};
   const scannedPool = scannedBird.cluePool?.[scannedPartKey] || [];
   const scannedText = scannedPool[0] || "不明特徵";
-  const scannedBirdName = scannedBird.name || "不明鳥類";
+  const scannedBirdName = scannedBird.name || "這張卡";
 
-  const msg = `你掃到了「${scannedBirdName}」！\n這張卡片特徵是「${scannedText}」。\n\n但我們需要的是：\n「${targetGuide}」\n\n請仔細比較兩者的差異再試試看！`;
+  // Contrastive Persuasion Message
+  const msg = `這張卡片（${scannedBirdName}）展示的是『${scannedText}』\n\n但我們的線索說這隻鳥是：\n『${targetGuide}』\n\n請仔細觀察兩者的差異！`;
   
   typeText(guideAiText, msg, 10);
-  guideRealClue.textContent = `目標：${targetGuide}`;
   
   btnStartScanFromGuide.textContent = "知道了，繼續掃描";
   btnStartScanFromGuide.onclick = () => {
     guideModal.classList.add("hidden");
     scanErrorPause = false; // Resume
+    scanPreviewBox.classList.remove("error"); // Reset border
     scanCooldownUntil = Date.now() + 1000;
   };
 }
