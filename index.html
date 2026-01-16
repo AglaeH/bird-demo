@@ -1180,9 +1180,10 @@ function grantClue(part){
  * 13) Feed bird (drop => pendingPart)
  * =========================== */
 function feedBird(){
+  // 先播餵食動畫，再進入掃描（避免動畫被掃描視窗蓋住）
   if(state.pendingPart){
     playFeedAnim(state.pendingPart);
-    openScan();
+    setTimeout(()=>openScan(), 980);
     return;
   }
 
@@ -1203,7 +1204,7 @@ function feedBird(){
   const targetLabel = STEPS.find(s=>s.key===part).label;
   showToast(`掉落線索：請找「${bird.name}｜${targetLabel}」線索卡`);
 
-  openScan();
+  setTimeout(()=>openScan(), 980);
   const guide = getGuideText(part);
   setScanMessage(`請找線索卡中符合「${guide}」的小鳥，並掃背面 QR。`, "info");
 }
