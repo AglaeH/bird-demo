@@ -579,6 +579,8 @@ const START = qs.get("start") === "1";
 const BIRD_PARAM = qs.get("bird") || localStorage.getItem("bbdemo:lastBird") || "sparrow";
 localStorage.setItem("bbdemo:lastBird", BIRD_PARAM);
 
+const MYSTERY_NAME = "神秘鳥"; // CONSTANT: All birds are this until Reveal
+
 const STORAGE_KEY = (birdKey)=>`bbdemo:state:${birdKey}`;
 const deepClone = (o)=>JSON.parse(JSON.stringify(o));
 
@@ -1161,7 +1163,7 @@ function feedBird(){
   playFeedAnim(part);
 
   const targetLabel = STEPS.find(s=>s.key===part).label;
-  showToast(`掉落線索：請找「${bird.name}｜${targetLabel}」線索卡`);
+  showToast(`掉落線索：請找「${MYSTERY_NAME}｜${targetLabel}」線索卡`);
 
   setTimeout(()=>{
     startPreScanGuide(part);
@@ -1195,7 +1197,7 @@ function startPreScanGuide(partKey) {
   
   // Reset UI
   guideTitle.textContent = `AI 觀察引導：${label}`;
-  guideAiText.textContent = `準備尋找「${bird.name}」的${label}囉！`;
+  guideAiText.textContent = `準備尋找「${MYSTERY_NAME}」的${label}囉！`;
   guideBtns.innerHTML = "";
   guideResult.classList.add("hidden");
   guideRealClue.textContent = "";
@@ -1296,7 +1298,7 @@ function openScan(){
   }
 
   const targetLabel = STEPS.find(s=>s.key===state.pendingPart).label;
-  scanNeedText.textContent = `${bird.name}｜${targetLabel}`;
+  scanNeedText.textContent = `${MYSTERY_NAME}｜${targetLabel}`;
   scanBadge.textContent = "掃描中…";
   scanBadge.classList.remove("error");
   scanPreviewBox.classList.remove("error");
@@ -1472,7 +1474,6 @@ function showScanErrorModal(scannedBirdKey, scannedPartKey) {
   const scannedBird = BIRDS[scannedBirdKey] || {};
   const scannedPool = scannedBird.cluePool?.[scannedPartKey] || [];
   const scannedText = scannedPool[0] || "不明特徵";
-  const scannedBirdName = scannedBird.name || "不明鳥類";
   const scannedPartLabel = STEPS.find(s=>s.key===scannedPartKey)?.label || "不明部位";
 
   // Contrastive Persuasion Message
@@ -1484,7 +1485,7 @@ function showScanErrorModal(scannedBirdKey, scannedPartKey) {
   } 
   // CASE 2: Wrong Bird
   else {
-     msg = `這張卡片是「${scannedBirdName}」！\n但我們要找的是「${bird.name}」！\n\n這張卡特徵：${scannedText}`;
+     msg = `這張卡片不是我們要找的喔！\n但我們要找的是「${MYSTERY_NAME}」！\n\n這張卡特徵：${scannedText}`;
   }
   
   // Append target expectation
@@ -1527,7 +1528,7 @@ function handleScannedText(text){
 
   const targetLabel = STEPS.find(s=>s.key===targetPart).label;
   grantClue(claim);
-  setScanMessage(`✅ 獲得線索：「${bird.name}｜${targetLabel}」`, "ok");
+  setScanMessage(`✅ 獲得線索：「${MYSTERY_NAME}｜${targetLabel}」`, "ok");
   showToast(`獲得線索：${targetLabel}`);
   return "success";
 }
@@ -1544,7 +1545,7 @@ function handleClaimFromURLIfAny(){
   }
   if(CLAIM !== state.pendingPart){
     const targetLabel = STEPS.find(s=>s.key===state.pendingPart).label;
-    showToast(`不是「${bird.name}」的「${targetLabel}」，再觀察看看`, 3000);
+    showToast(`不是「${MYSTERY_NAME}」的「${targetLabel}」，再觀察看看`, 3000);
     setTimeout(()=>location.replace(`${location.pathname}?bird=${encodeURIComponent(birdKey)}`), 900);
     return true;
   }
@@ -1567,7 +1568,7 @@ function openQuiz(){
     return;
   }
   quizModal.classList.remove("hidden");
-  quizTitle.textContent = `辨認鳥類：${bird.name}`;
+  quizTitle.textContent = `辨認鳥類：${MYSTERY_NAME}`;
   buildStepDots();
 
   const idx = STEPS.findIndex(s=>!state.solved[s.key]);
@@ -1664,7 +1665,7 @@ function chooseOption(part, optKey, cardEl){
 function openAssembleModal(partJustSolved){
   const label = STEPS.find(s=>s.key===partJustSolved).label;
   assembleTitle.textContent = "答對！已拼上部位";
-  assembleTag.textContent = `${bird.name}｜${label}`;
+  assembleTag.textContent = `${MYSTERY_NAME}｜${label}`;
   assembleBird.innerHTML = `<div style="width:min(520px,92vw)">${renderAssembleBirdSVG()}</div>`;
   assembleSummary.textContent = `你完成了「${label}」。觀察重點：${getGuideText(partJustSolved)}`;
 
@@ -1768,7 +1769,7 @@ function openAiHint(partKey){
   const text =
 `AI 助教：我先把你的線索拆成「可以看的重點」——
 
-【你詢問的部位】${bird.name}｜${label}
+【你詢問的部位】${MYSTERY_NAME}｜${label}
 【可用線索】「${clue}」
 
 建議觀察步驟：
@@ -1807,7 +1808,7 @@ function typeText(el, text, speedMs=14){
  * =========================== */
 function openReveal(){
   revealModal.classList.remove("hidden");
-  revealName.textContent = bird.name;
+  revealName.textContent = bird.name; // SHOW REAL NAME
   revealBird.innerHTML = `<div style="width:min(520px,92vw)">${renderFinalBirdSVG()}</div>`;
   revealSummary.textContent = bird.summary;
 }
@@ -1859,7 +1860,7 @@ function init(){
     return;
   }
 
-  elBirdName.textContent = bird.name;
+  elBirdName.textContent = MYSTERY_NAME; // HIDE NAME
   elBirdSub.textContent = bird.sub;
 
   renderBird(state.assembledCount);
@@ -1928,7 +1929,7 @@ function init(){
   });
   btnCopyLink.addEventListener("click", copyLink);
 
-  showToast(`已載入：${bird.name}（餵鳥→掃描線索卡）`);
+  showToast(`已載入：${MYSTERY_NAME}（餵鳥→掃描線索卡）`);
 }
 
 init();
