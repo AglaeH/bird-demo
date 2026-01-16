@@ -361,7 +361,7 @@
 
     /* Confetti Animation */
     #confettiOverlay{
-      position:fixed; inset:0; pointer-events:none; z-index:90; overflow:hidden; display:none;
+      position:fixed; inset:0; pointer-events:none; z-index:200; overflow:hidden; display:none;
     }
     .confetti{
       position:absolute; width:10px; height:10px; background:#ffd700;
@@ -1686,6 +1686,7 @@ function openAssembleModal(partJustSolved){
 
   const doneCount = Object.keys(state.solved).length;
   btnAssembleNext.textContent = (doneCount >= 5) ? "完成" : "下一步";
+  btnAssembleNext.style.display = ""; // Ensure button is visible
   assembleModal.classList.remove("hidden");
 }
 
@@ -1694,7 +1695,7 @@ function closeAssembleModal(){ assembleModal.classList.add("hidden"); }
 /** ===========================
  * Confetti Celebration Logic
  * =========================== */
-function triggerCelebration() {
+function triggerCelebration(callback) {
   // 1. Show confetti container
   const container = document.getElementById("confettiOverlay");
   container.style.display = "block";
@@ -1712,22 +1713,34 @@ function triggerCelebration() {
     container.appendChild(p);
   }
 
-  // 3. Wait ~2.5s then Reveal
+  // 3. Wait ~2.5s then callback (Reveal)
   setTimeout(() => {
     container.style.display = "none";
     container.innerHTML = "";
-    openReveal();
+    if(callback) callback();
   }, 2500);
 }
 
 function assembleNext(){
-  closeAssembleModal();
+  // Check if we are done with all parts
   const doneCount = Object.keys(state.solved).length;
+  
   if(doneCount >= 5){
-    // Instead of revealing directly, trigger celebration first!
-    triggerCelebration();
+    // Celebration path:
+    // 1. Hide button to prevent double clicks
+    btnAssembleNext.style.display = "none";
+    
+    // 2. Trigger confetti while modal is STILL OPEN
+    triggerCelebration(() => {
+       closeAssembleModal(); // Now close old modal
+       openReveal();         // And open reveal modal
+       btnAssembleNext.style.display = ""; // Reset button for future
+    });
     return;
   }
+
+  // Normal path (just next step)
+  closeAssembleModal();
   const nextIdx = STEPS.findIndex(s=>!state.solved[s.key]);
   state.currentStep = (nextIdx>=0)?nextIdx:0;
   saveState();
