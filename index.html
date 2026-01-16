@@ -113,10 +113,8 @@
       z-index:50;
     }
     
-    /* FIX: Make guideModal higher than scanOverlay (50) */
-    #guideModal {
-      z-index: 60; 
-    }
+    /* Guide needs to be higher than scan overlay */
+    #guideModal { z-index: 60; }
 
     .hidden{display:none !important;}
     .box{
@@ -247,54 +245,30 @@
       background: rgba(198,40,40,.85);
     }
 
-    /* Feed animation (seed drop overlay) */
+    /* Feed animation */
     #feedAnim{
-      position:fixed;
-      inset:0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index:45; /* below .modal (50) */
-      background: rgba(0,0,0,.18);
-      backdrop-filter: blur(3px);
-      -webkit-backdrop-filter: blur(3px);
-      pointer-events:none;
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      z-index:45; background: rgba(0,0,0,.18); backdrop-filter: blur(3px); pointer-events:none;
     }
     #feedAnim.show{ display:flex; }
     #feedAnim .feedCard{
       width: min(360px, calc(100% - 32px));
-      background: rgba(255,255,255,.92);
-      border-radius: 22px;
-      border: 1px solid rgba(0,0,0,.12);
-      box-shadow: var(--shadow);
-      padding: 14px 14px 16px;
-      text-align:center;
+      background: rgba(255,255,255,.92); border-radius: 22px;
+      border: 1px solid rgba(0,0,0,.12); box-shadow: var(--shadow);
+      padding: 14px 14px 16px; text-align:center;
     }
     #feedAnim .feedTitle{ font-weight:900; font-size:16px; margin-bottom:10px; }
     #feedAnim .feedSub{ color: rgba(0,0,0,.64); font-size:13px; margin-top:10px; }
-
     #feedAnim .feedAnim{ position:relative; height:140px; margin: 6px auto 0; width:220px; }
     #feedAnim .bowl{
-      position:absolute;
-      left:50%;
-      bottom: 10px;
-      width: 140px;
-      height: 44px;
-      transform: translateX(-50%);
-      border-radius: 0 0 50px 50px;
-      border: 3px solid rgba(163,58,42,.65);
-      border-top: 0;
-      background: rgba(163,58,42,.08);
+      position:absolute; left:50%; bottom: 10px; width: 140px; height: 44px;
+      transform: translateX(-50%); border-radius: 0 0 50px 50px;
+      border: 3px solid rgba(163,58,42,.65); border-top: 0; background: rgba(163,58,42,.08);
     }
     #feedAnim .seed{
-      position:absolute;
-      width: 10px; height: 10px;
-      border-radius: 999px;
-      background: rgba(163,58,42,.9);
-      top: 0px;
-      left: 50%;
-      transform: translateX(-50%);
-      animation: fall 0.8s ease-in infinite;
+      position:absolute; width: 10px; height: 10px; border-radius: 999px;
+      background: rgba(163,58,42,.9); top: 0px; left: 50%;
+      transform: translateX(-50%); animation: fall 0.8s ease-in infinite;
     }
     #feedAnim .seed.s1{ left: 35%; animation-delay: .00s; }
     #feedAnim .seed.s2{ left: 50%; animation-delay: .12s; }
@@ -306,51 +280,29 @@
       70%{ transform: translate(-50%, 106px) scale(1); opacity: .95; }
       100%{ transform: translate(-50%, 106px) scale(.4); opacity: 0; }
     }
+
     /* AI hint modal typing */
     .aiBox{
-      background:#fff;
-      border:1px solid rgba(0,0,0,.10);
-      border-radius:18px;
-      padding:12px;
-      line-height:1.45;
-      width:100%;
-      min-height:100px;
-      white-space:pre-wrap;
+      background:#fff; border:1px solid rgba(0,0,0,.10); border-radius:18px;
+      padding:12px; line-height:1.45; width:100%; min-height:100px; white-space:pre-wrap;
     }
-
     /* AI Options Area */
-    .aiOptions{
-      display:grid; grid-template-columns: 1fr; gap:10px; margin-top:12px;
-    }
+    .aiOptions{ display:grid; grid-template-columns: 1fr; gap:10px; margin-top:12px; }
     .aiOptBtn{
-      background:#fff;
-      border:2px solid rgba(0,0,0,.12);
-      border-radius:16px;
-      padding:14px;
-      font-weight:900;
-      font-size:15px;
-      color: var(--ink);
-      cursor:pointer;
-      text-align:left;
-      transition:transform .1s, background .1s;
+      background:#fff; border:2px solid rgba(0,0,0,.12); border-radius:16px;
+      padding:14px; font-weight:900; font-size:15px; color: var(--ink);
+      cursor:pointer; text-align:left; transition:transform .1s, background .1s;
       box-shadow: 0 4px 10px rgba(0,0,0,.05);
     }
     .aiOptBtn:active{transform:scale(0.98);}
     .aiOptBtn:hover{background:var(--panel2);}
 
     /* Guide / Pre-scan Modal Styles */
-    .guideBtns{
-      display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;
-    }
+    .guideBtns{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px; }
     .guideBtn{
-      background:#fff;
-      border:2px solid rgba(0,0,0,.10);
-      border-radius:16px;
-      padding:16px 12px;
-      font-weight:900; font-size:16px;
-      color: var(--ink);
-      cursor:pointer;
-      text-align:center;
+      background:#fff; border:2px solid rgba(0,0,0,.10); border-radius:16px;
+      padding:16px 12px; font-weight:900; font-size:16px; color: var(--ink);
+      cursor:pointer; text-align:center;
     }
     .guideBtn:active{ transform:scale(0.98); }
     .guideBtn.correct{ background:rgba(46,125,50,.1); border-color:var(--good); color:var(--good); }
@@ -368,7 +320,6 @@
       0%{ transform:translateY(0) rotate(0deg); opacity:1; }
       100%{ transform:translateY(110vh) rotate(720deg); opacity:0; }
     }
-
   </style>
 </head>
 
@@ -386,7 +337,7 @@
         <span style="opacity:.6">|</span>
         待掃 <strong id="pendingText">—</strong>
         <span style="opacity:.6">|</span>
-        AI 提示 <strong>∞</strong>
+        AI 提示 <strong id="hintLeft">∞</strong>
       </div>
     </div>
 
@@ -435,12 +386,10 @@
       </div>
       <div class="content">
         <div class="aiBox" id="guideAiText" style="min-height:80px;">AI 正在分析線索重點...</div>
-        
         <div id="guideActions">
           <div style="text-align:center;font-size:14px;color:var(--muted);margin-bottom:6px;">你覺得哪個觀察維度更關鍵？</div>
           <div class="guideBtns" id="guideBtns"></div>
         </div>
-
         <div id="guideResult" class="hidden" style="display:flex;flex-direction:column;gap:10px;align-items:center;">
           <div class="clueBox" id="guideRealClue" style="width:100%;text-align:center;font-weight:bold;"></div>
           <button class="btnPrimary" id="btnStartScanFromGuide" style="width:100%;">開啟相機掃描</button>
@@ -455,14 +404,11 @@
         <div class="title" id="quizTitle">辨認鳥類</div>
         <button class="xbtn" id="closeQuiz">×</button>
       </div>
-
       <div class="stepDots" id="stepDots"></div>
-
       <div class="content">
         <div class="clueBox" id="clueBox"></div>
         <div class="grid" id="optionsGrid"></div>
       </div>
-
       <div class="footer">
         <div class="left">
           <div class="kpi" id="kpiText">不知道選哪個？問問 AI 助教</div>
@@ -481,12 +427,9 @@
         <div class="title">AI 助教 - 觀點交流</div>
         <button class="xbtn" id="closeAi">×</button>
       </div>
-
       <div class="content">
         <div class="aiBox" id="aiText"></div>
-        
         <div class="aiOptions" id="aiOptions" style="display:none"></div>
-
         <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;">
           <button class="btnSmall btnGhost" id="aiOk">關閉</button>
         </div>
@@ -557,14 +500,11 @@
             <div class="scanBadge" id="scanBadge">掃描中…</div>
             <canvas id="scanPreview" width="960" height="540"></canvas>
           </div>
-
           <div class="clueBox" id="scanHintText"></div>
-
           <div style="font-size:13px;color:var(--muted);line-height:1.45">
             目前需要掃描：<strong id="scanNeedText">—</strong><br/>
             建議：QR 佔畫面 1/4 以上、保持穩定 1 秒、避免反光。
           </div>
-
           <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
             <button class="btnSmall btnGhost" id="btnStopScan2">取消掃描</button>
           </div>
@@ -576,23 +516,16 @@
 </div>
 
 <script>
-/** ===========================
- * 0) Query params / storage
- * =========================== */
 const qs = new URLSearchParams(location.search);
-const CLAIM = qs.get("claim");                 // fallback: if external scanner opens link
+const CLAIM = qs.get("claim");
 const START = qs.get("start") === "1";
 const BIRD_PARAM = qs.get("bird") || localStorage.getItem("bbdemo:lastBird") || "sparrow";
 localStorage.setItem("bbdemo:lastBird", BIRD_PARAM);
 
-const MYSTERY_NAME = "神秘鳥"; // CONSTANT: All birds are this until Reveal
-
+const MYSTERY_NAME = "神秘鳥";
 const STORAGE_KEY = (birdKey)=>`bbdemo:state:${birdKey}`;
 const deepClone = (o)=>JSON.parse(JSON.stringify(o));
 
-/** ===========================
- * 1) Steps fixed 1–5
- * =========================== */
 const STEPS = [
   { key:"legs", label:"腳" },
   { key:"body", label:"身體" },
@@ -601,100 +534,43 @@ const STEPS = [
   { key:"head", label:"頭/記號" },
 ];
 
-/** ===========================
- * 2) Option SVG library
- * =========================== */
-function svgWrap(inner){ return `
-<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  ${inner}
-</svg>`; }
+function svgWrap(inner){ return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`; }
 
 const OPTION_LIB = {
   legs: {
-    pink:  { label:"粉紅腳", desc:"偏粉紅、短腿", svg: svgWrap(`<path d="M24 12c3 8 1 14-4 20" stroke="#e17b86" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M40 12c-3 8-1 14 4 20" stroke="#e17b86" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M18 34h10" stroke="#e17b86" stroke-width="4" stroke-linecap="round"/>
-      <path d="M36 34h10" stroke="#e17b86" stroke-width="4" stroke-linecap="round"/>`) },
-    black: { label:"黑色腳", desc:"偏黑、抓枝穩", svg: svgWrap(`<path d="M24 12c3 10 1 16-4 24" stroke="#1d2330" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M40 12c-3 10-1 16 4 24" stroke="#1d2330" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M16 40h14" stroke="#1d2330" stroke-width="4" stroke-linecap="round"/>
-      <path d="M34 40h14" stroke="#1d2330" stroke-width="4" stroke-linecap="round"/>`) },
-    brown: { label:"褐色腳", desc:"偏褐、短而細", svg: svgWrap(`<path d="M24 12c3 9 1 15-4 22" stroke="#6b4a2f" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M40 12c-3 9-1 15 4 22" stroke="#6b4a2f" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M16 38h14" stroke="#6b4a2f" stroke-width="4" stroke-linecap="round"/>
-      <path d="M34 38h14" stroke="#6b4a2f" stroke-width="4" stroke-linecap="round"/>`) },
-    long:  { label:"長腿", desc:"腿明顯較長", svg: svgWrap(`<path d="M24 8c2 14 0 22-4 34" stroke="#303a4a" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M40 8c-2 14 0 22 4 34" stroke="#303a4a" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M14 44h18" stroke="#303a4a" stroke-width="4" stroke-linecap="round"/>
-      <path d="M32 44h18" stroke="#303a4a" stroke-width="4" stroke-linecap="round"/>`) },
+    pink:  { label:"粉紅腳", desc:"偏粉紅、短腿", svg: svgWrap(`<path d="M24 12c3 8 1 14-4 20" stroke="#e17b86" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M40 12c-3 8-1 14 4 20" stroke="#e17b86" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M18 34h10" stroke="#e17b86" stroke-width="4" stroke-linecap="round"/><path d="M36 34h10" stroke="#e17b86" stroke-width="4" stroke-linecap="round"/>`) },
+    black: { label:"黑色腳", desc:"偏黑、抓枝穩", svg: svgWrap(`<path d="M24 12c3 10 1 16-4 24" stroke="#1d2330" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M40 12c-3 10-1 16 4 24" stroke="#1d2330" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M16 40h14" stroke="#1d2330" stroke-width="4" stroke-linecap="round"/><path d="M34 40h14" stroke="#1d2330" stroke-width="4" stroke-linecap="round"/>`) },
+    brown: { label:"褐色腳", desc:"偏褐、短而細", svg: svgWrap(`<path d="M24 12c3 9 1 15-4 22" stroke="#6b4a2f" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M40 12c-3 9-1 15 4 22" stroke="#6b4a2f" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M16 38h14" stroke="#6b4a2f" stroke-width="4" stroke-linecap="round"/><path d="M34 38h14" stroke="#6b4a2f" stroke-width="4" stroke-linecap="round"/>`) },
+    long:  { label:"長腿", desc:"腿明顯較長", svg: svgWrap(`<path d="M24 8c2 14 0 22-4 34" stroke="#303a4a" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M40 8c-2 14 0 22 4 34" stroke="#303a4a" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M14 44h18" stroke="#303a4a" stroke-width="4" stroke-linecap="round"/><path d="M32 44h18" stroke="#303a4a" stroke-width="4" stroke-linecap="round"/>`) },
   },
   body: {
-    sparrow: { label:"褐色帶紋", desc:"背部有深色條紋感", svg: svgWrap(`
-      <ellipse cx="32" cy="34" rx="20" ry="14" fill="#b07a45"/>
-      <path d="M18 28c6 2 12 2 20 0" stroke="#6a4529" stroke-width="3" opacity=".8"/>
-      <path d="M18 34c6 2 12 2 20 0" stroke="#6a4529" stroke-width="3" opacity=".8"/>
-      <path d="M18 40c6 2 12 2 20 0" stroke="#6a4529" stroke-width="3" opacity=".8"/>`) },
-    bulbul:  { label:"灰褐身體", desc:"灰褐、腹部較淡", svg: svgWrap(`
-      <ellipse cx="32" cy="34" rx="20" ry="14" fill="#9d8f86"/>
-      <ellipse cx="34" cy="38" rx="16" ry="10" fill="#c6bbb4" opacity=".9"/>`) },
-    dove:    { label:"土褐偏粉", desc:"樸素溫和的土褐色", svg: svgWrap(`
-      <ellipse cx="32" cy="34" rx="20" ry="14" fill="#c08e78"/>
-      <ellipse cx="35" cy="38" rx="15" ry="9" fill="#d8b1a1" opacity=".85"/>`) },
-    drongo:  { label:"亮黑身體", desc:"偏黑、略有金屬感", svg: svgWrap(`
-      <ellipse cx="32" cy="34" rx="20" ry="14" fill="#1b1f27"/>
-      <path d="M18 30c6-4 24-4 30 0" stroke="#4a5a78" stroke-width="3" opacity=".35"/>`) },
-    whiteeye:{ label:"綠黃身體", desc:"綠黃、腹部較淡", svg: svgWrap(`
-      <ellipse cx="32" cy="34" rx="20" ry="14" fill="#8dbb3e"/>
-      <ellipse cx="34" cy="38" rx="16" ry="10" fill="#d8e58b" opacity=".9"/>`) },
+    sparrow: { label:"褐色帶紋", desc:"背部有深色條紋感", svg: svgWrap(`<ellipse cx="32" cy="34" rx="20" ry="14" fill="#b07a45"/><path d="M18 28c6 2 12 2 20 0" stroke="#6a4529" stroke-width="3" opacity=".8"/><path d="M18 34c6 2 12 2 20 0" stroke="#6a4529" stroke-width="3" opacity=".8"/><path d="M18 40c6 2 12 2 20 0" stroke="#6a4529" stroke-width="3" opacity=".8"/>`) },
+    bulbul:  { label:"灰褐身體", desc:"灰褐、腹部較淡", svg: svgWrap(`<ellipse cx="32" cy="34" rx="20" ry="14" fill="#9d8f86"/><ellipse cx="34" cy="38" rx="16" ry="10" fill="#c6bbb4" opacity=".9"/>`) },
+    dove:    { label:"土褐偏粉", desc:"樸素溫和的土褐色", svg: svgWrap(`<ellipse cx="32" cy="34" rx="20" ry="14" fill="#c08e78"/><ellipse cx="35" cy="38" rx="15" ry="9" fill="#d8b1a1" opacity=".85"/>`) },
+    drongo:  { label:"亮黑身體", desc:"偏黑、略有金屬感", svg: svgWrap(`<ellipse cx="32" cy="34" rx="20" ry="14" fill="#1b1f27"/><path d="M18 30c6-4 24-4 30 0" stroke="#4a5a78" stroke-width="3" opacity=".35"/>`) },
+    whiteeye:{ label:"綠黃身體", desc:"綠黃、腹部較淡", svg: svgWrap(`<ellipse cx="32" cy="34" rx="20" ry="14" fill="#8dbb3e"/><ellipse cx="34" cy="38" rx="16" ry="10" fill="#d8e58b" opacity=".9"/>`) },
   },
   wing: {
-    roundBar:{ label:"圓翼＋淡翼帶", desc:"短圓、常見淡色翼帶", svg: svgWrap(`
-      <path d="M14 44c10-22 28-28 36-10-4 14-18 24-36 10z" fill="#6a4a2f" opacity=".85"/>
-      <path d="M18 38c10-8 18-9 26-2" stroke="#f3e7c8" stroke-width="4" stroke-linecap="round" opacity=".9"/>`) },
-    shortRound:{ label:"短圓翼", desc:"整體圓鈍、不尖", svg: svgWrap(`
-      <path d="M14 44c10-22 28-28 36-10-4 14-18 24-36 10z" fill="#a87956"/>
-      <path d="M18 38c10-8 18-9 26-2" stroke="#7b5a45" stroke-width="3" stroke-linecap="round" opacity=".7"/>`) },
-    longPoint:{ label:"長尖翼", desc:"較長、翼端尖", svg: svgWrap(`
-      <path d="M12 46c18-30 34-30 40-14-8 18-24 26-40 14z" fill="#1b1f27"/>
-      <path d="M18 40c12-10 22-10 30-2" stroke="#4a5a78" stroke-width="3" stroke-linecap="round" opacity=".45"/>`) },
-    greenSmall:{ label:"小巧綠翼", desc:"偏小、與身體同色系", svg: svgWrap(`
-      <path d="M16 46c10-18 26-22 34-8-6 12-18 18-34 8z" fill="#7aa62f"/>
-      <path d="M20 40c8-6 14-6 20-1" stroke="#d8e58b" stroke-width="3" stroke-linecap="round" opacity=".8"/>`) },
+    roundBar:{ label:"圓翼＋淡翼帶", desc:"短圓、常見淡色翼帶", svg: svgWrap(`<path d="M14 44c10-22 28-28 36-10-4 14-18 24-36 10z" fill="#6a4a2f" opacity=".85"/><path d="M18 38c10-8 18-9 26-2" stroke="#f3e7c8" stroke-width="4" stroke-linecap="round" opacity=".9"/>`) },
+    shortRound:{ label:"短圓翼", desc:"整體圓鈍、不尖", svg: svgWrap(`<path d="M14 44c10-22 28-28 36-10-4 14-18 24-36 10z" fill="#a87956"/><path d="M18 38c10-8 18-9 26-2" stroke="#7b5a45" stroke-width="3" stroke-linecap="round" opacity=".7"/>`) },
+    longPoint:{ label:"長尖翼", desc:"較長、翼端尖", svg: svgWrap(`<path d="M12 46c18-30 34-30 40-14-8 18-24 26-40 14z" fill="#1b1f27"/><path d="M18 40c12-10 22-10 30-2" stroke="#4a5a78" stroke-width="3" stroke-linecap="round" opacity=".45"/>`) },
+    greenSmall:{ label:"小巧綠翼", desc:"偏小、與身體同色系", svg: svgWrap(`<path d="M16 46c10-18 26-22 34-8-6 12-18 18-34 8z" fill="#7aa62f"/><path d="M20 40c8-6 14-6 20-1" stroke="#d8e58b" stroke-width="3" stroke-linecap="round" opacity=".8"/>`) },
   },
   tail: {
     shortRound:{ label:"短圓尾", desc:"尾短、末端圓", svg: svgWrap(`<path d="M18 40c8-8 20-8 28 0-10 12-18 12-28 0z" fill="#8dbb3e"/>`) },
     square:   { label:"中長方尾", desc:"末端偏平", svg: svgWrap(`<path d="M18 42h28v10c-10 4-18 4-28 0z" fill="#9d8f86"/>`) },
     longRound:{ label:"長圓尾", desc:"尾較長、末端圓", svg: svgWrap(`<path d="M20 34c8-10 16-10 24 0v22c-10 6-14 6-24 0z" fill="#c08e78"/>`) },
-    fork:     { label:"深叉尾", desc:"像剪刀，尾端分叉", svg: svgWrap(`
-      <path d="M32 22c-6 10-10 22-10 34 6-6 10-10 10-10s4 4 10 10c0-12-4-24-10-34z" fill="#1b1f27"/>
-      <path d="M32 46l-10 10" stroke="#4a5a78" stroke-width="3" opacity=".35"/>
-      <path d="M32 46l10 10" stroke="#4a5a78" stroke-width="3" opacity=".35"/>`) },
+    fork:     { label:"深叉尾", desc:"像剪刀，尾端分叉", svg: svgWrap(`<path d="M32 22c-6 10-10 22-10 34 6-6 10-10 10-10s4 4 10 10c0-12-4-24-10-34z" fill="#1b1f27"/><path d="M32 46l-10 10" stroke="#4a5a78" stroke-width="3" opacity=".35"/><path d="M32 46l10 10" stroke="#4a5a78" stroke-width="3" opacity=".35"/>`) },
   },
   head: {
-    plainBrown:{ label:"素色棕頭", desc:"沒有白眼圈/白頭/項鍊斑", svg: svgWrap(`
-      <circle cx="28" cy="30" r="10" fill="#b07a45"/>
-      <path d="M36 30l14-6-14 0z" fill="#c89c4a"/>`) },
-    whiteHead:{ label:"白頭黑臉", desc:"頭頂偏白、臉側較深", svg: svgWrap(`
-      <circle cx="28" cy="30" r="10" fill="#e9e3d8"/>
-      <path d="M22 26c6 0 12 8 12 12-10 2-14-2-18-8z" fill="#2a2f3a" opacity=".85"/>
-      <path d="M36 30l14-6-14 0z" fill="#c89c4a"/>`) },
-    spottedNeck:{ label:"珠頸斑點", desc:"頸側黑白斑像項鍊", svg: svgWrap(`
-      <circle cx="28" cy="28" r="10" fill="#c08e78"/>
-      <path d="M24 38c6-2 12-2 18 2" stroke="#1b1f27" stroke-width="3" stroke-dasharray="2 4" opacity=".85"/>
-      <path d="M36 28l14-6-14 0z" fill="#c89c4a"/>`) },
-    blackHead:{ label:"全黑頭", desc:"頭部也偏黑", svg: svgWrap(`
-      <circle cx="28" cy="30" r="10" fill="#1b1f27"/>
-      <path d="M36 30l14-6-14 0z" fill="#303a4a"/>`) },
-    whiteEyeRing:{ label:"白色眼圈", desc:"眼周有明顯白圈", svg: svgWrap(`
-      <circle cx="28" cy="30" r="10" fill="#8dbb3e"/>
-      <circle cx="28" cy="30" r="5.5" fill="none" stroke="#ffffff" stroke-width="3"/>
-      <path d="M36 30l14-6-14 0z" fill="#1b1f27"/>`) },
+    plainBrown:{ label:"素色棕頭", desc:"沒有白眼圈/白頭/項鍊斑", svg: svgWrap(`<circle cx="28" cy="30" r="10" fill="#b07a45"/><path d="M36 30l14-6-14 0z" fill="#c89c4a"/>`) },
+    whiteHead:{ label:"白頭黑臉", desc:"頭頂偏白、臉側較深", svg: svgWrap(`<circle cx="28" cy="30" r="10" fill="#e9e3d8"/><path d="M22 26c6 0 12 8 12 12-10 2-14-2-18-8z" fill="#2a2f3a" opacity=".85"/><path d="M36 30l14-6-14 0z" fill="#c89c4a"/>`) },
+    spottedNeck:{ label:"珠頸斑點", desc:"頸側黑白斑像項鍊", svg: svgWrap(`<circle cx="28" cy="28" r="10" fill="#c08e78"/><path d="M24 38c6-2 12-2 18 2" stroke="#1b1f27" stroke-width="3" stroke-dasharray="2 4" opacity=".85"/><path d="M36 28l14-6-14 0z" fill="#c89c4a"/>`) },
+    blackHead:{ label:"全黑頭", desc:"頭部也偏黑", svg: svgWrap(`<circle cx="28" cy="30" r="10" fill="#1b1f27"/><path d="M36 30l14-6-14 0z" fill="#303a4a"/>`) },
+    whiteEyeRing:{ label:"白色眼圈", desc:"眼周有明顯白圈", svg: svgWrap(`<circle cx="28" cy="30" r="10" fill="#8dbb3e"/><circle cx="28" cy="30" r="5.5" fill="none" stroke="#ffffff" stroke-width="3"/><path d="M36 30l14-6-14 0z" fill="#1b1f27"/>`) },
   }
 };
 
-/** ===========================
- * 3) Bird content (5 birds)
- * =========================== */
 const BIRDS = {
   sparrow: {
     name:"麻雀", sub:"demo",
@@ -832,9 +708,6 @@ function getBirdByKey(key){ return BIRDS[key] || BIRDS.sparrow; }
 const birdKey = BIRD_PARAM;
 const bird = getBirdByKey(birdKey);
 
-/** ===========================
- * 4) State + persistence
- * =========================== */
 const DEFAULT_STATE = {
   clues: {},
   solved: {},
@@ -864,9 +737,6 @@ function resetState(){
   saveState();
 }
 
-/** ===========================
- * 5) DOM helpers
- * =========================== */
 const $ = (id)=>document.getElementById(id);
 
 const elBirdName = $("birdName");
@@ -940,9 +810,6 @@ const btnStopScan2 = $("btnStopScan2");
 const scanPreview = $("scanPreview");
 const scanPctx = scanPreview.getContext("2d", { willReadFrequently:true });
 
-/** ===========================
- * 6) Toast
- * =========================== */
 let toastTimer = 0;
 function showToast(msg, ms=2600){
   toast.textContent = msg;
@@ -951,9 +818,6 @@ function showToast(msg, ms=2600){
   toastTimer = setTimeout(()=>toast.classList.remove("show"), ms);
 }
 
-/** ===========================
- * 7) Camera
- * =========================== */
 async function startCamera(silent=false){
   try{
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -973,9 +837,6 @@ async function startCamera(silent=false){
   }
 }
 
-/** ===========================
- * 8) Render chips / counters
- * =========================== */
 function renderChips(){
   elClueChips.innerHTML = "";
   STEPS.forEach(s=>{
@@ -991,19 +852,16 @@ function renderChips(){
 function renderCounters(){
   const count = Object.keys(state.clues).length;
   elClueCount.textContent = String(count);
-  elHintLeft.textContent = "∞"; // Unlimited hints
+  elHintLeft.textContent = "∞"; 
   elPendingText.textContent = state.pendingPart ? STEPS.find(s=>s.key===state.pendingPart).label : "—";
 
   btnQuiz.disabled = (count < 5) || !!state.pendingPart;
-  btnScan.disabled = !state.pendingPart; // Enable Scan button if there is a pending part
+  btnScan.disabled = !state.pendingPart; 
 
   const nextIdx = Math.max(0, STEPS.findIndex(s=>!state.solved[s.key]));
   btnQuiz.textContent = `開始辨認（${Math.min(nextIdx+1,5)}/5）`;
 }
 
-/** ===========================
- * 9) Bird render + assemble animation
- * =========================== */
 function renderBird(assembled){
   const pal = bird.palette;
   const showLegs = assembled >= 1;
@@ -1068,9 +926,7 @@ function tailShape(color){
   const isLong = (bird.name === "珠頸斑鳩");
   const isShort = (bird.name === "綠繡眼");
   if(isFork){
-    return `
-      <path d="M156 108c30 26 60 52 82 78-24 4-46-2-66-18 6 22 18 42 36 60-30-8-56-28-76-58-10 30-30 54-58 70 18-24 28-50 32-78-18 18-38 26-60 24 22-24 46-48 70-78z"
-            fill="${color}" opacity=".96"/>`;
+    return `<path d="M156 108c30 26 60 52 82 78-24 4-46-2-66-18 6 22 18 42 36 60-30-8-56-28-76-58-10 30-30 54-58 70 18-24 28-50 32-78-18 18-38 26-60 24 22-24 46-48 70-78z" fill="${color}" opacity=".96"/>`;
   }
   if(isLong){
     return `<path d="M150 120c55-55 88-55 130 0v110c-55 28-75 28-130 0z" fill="${color}" opacity=".96"/>`;
@@ -1101,39 +957,25 @@ function headShape(pal){
   `;
 }
 
-/** ===========================
- * 10) Feed animation (drop clue card)
- * =========================== */
 function playFeedAnim(partKey){
   const step = STEPS.find(s=>s.key===partKey);
   const partLabel = step ? step.label : "—";
   $("feedAnimPart").textContent = `線索：${partLabel}`;
-  const sub = $("feedSubText");
-  if(sub) sub.textContent = "掉落一張線索卡";
-
+  
   feedAnim.classList.remove("show");
   void feedAnim.offsetWidth;
   feedAnim.classList.add("show");
-  feedAnim.setAttribute("aria-hidden","false");
-
-  clearTimeout(playFeedAnim._t);
-  playFeedAnim._t = setTimeout(()=>{
+  
+  setTimeout(()=>{
     feedAnim.classList.remove("show");
-    feedAnim.setAttribute("aria-hidden","true");
   }, 950);
 }
 
-/** ===========================
- * 11) Scan guidance text (use bird feature)
- * =========================== */
 function getGuideText(partKey){
   const pool = bird.cluePool[partKey] || [];
   return pool[0] || "請依線索觀察圖卡特徵。";
 }
 
-/** ===========================
- * 12) Grant clue
- * =========================== */
 function grantClue(part){
   const pool = bird.cluePool[part];
   const clue = pool[Math.floor(Math.random()*pool.length)];
@@ -1144,12 +986,8 @@ function grantClue(part){
   renderCounters();
 }
 
-/** ===========================
- * 13) Feed bird (drop => pendingPart) -> Start Guide
- * =========================== */
 function feedBird(){
   if(state.pendingPart){
-    // Already has a part, just replay anim and open guide
     playFeedAnim(state.pendingPart);
     setTimeout(()=>startPreScanGuide(state.pendingPart), 980);
     return;
@@ -1177,23 +1015,15 @@ function feedBird(){
   }, 980);
 }
 
-/** ===========================
- * 13.5) Pre-Scan Guide Logic (NEW)
- * =========================== */
 function analyzeDimension(clueText) {
-  // Simple heuristic: check for Color vs Shape keywords
   const colors = ["紅","粉","黑","綠","褐","白","色","亮"];
   const shapes = ["圓","尖","叉","方","長","短","細","粗","形","狀"];
-  
   let cCount = 0;
   let sCount = 0;
-  
   colors.forEach(k => { if(clueText.includes(k)) cCount++; });
   shapes.forEach(k => { if(clueText.includes(k)) sCount++; });
-
   if (cCount > sCount) return { type: "color", label: "顏色", wrong: "形狀" };
   if (sCount > cCount) return { type: "shape", label: "形狀", wrong: "顏色" };
-  // Fallback if neither detected strongly, pick random based on part
   return { type: "shape", label: "形狀", wrong: "顏色" };
 }
 
@@ -1202,25 +1032,19 @@ function startPreScanGuide(partKey) {
   const label = step.label;
   const clue = getGuideText(partKey);
   
-  // Reset UI
   guideTitle.textContent = `AI 觀察引導：${label}`;
   guideAiText.textContent = `準備尋找「${MYSTERY_NAME}」的${label}囉！`;
   guideBtns.innerHTML = "";
   guideResult.classList.add("hidden");
   guideRealClue.textContent = "";
   guideModal.classList.remove("hidden");
-  
-  // Ensure actions are visible for guide
   guideActions.classList.remove("hidden");
 
-  // Determine dimension
   const dim = analyzeDimension(clue);
   
-  // After a brief pause, show question
   setTimeout(() => {
     typeText(guideAiText, `要找${label}了！你覺得觀察「${dim.label}」還是「${dim.wrong}」更有利於辨認？`, 20);
     
-    // Create Buttons (Randomize order)
     const btnCorrect = document.createElement("div");
     btnCorrect.className = "guideBtn";
     btnCorrect.textContent = dim.label;
@@ -1228,7 +1052,7 @@ function startPreScanGuide(partKey) {
 
     const btnWrong = document.createElement("div");
     btnWrong.className = "guideBtn";
-    btnWrong.textContent = dim.wrong; // The distractor
+    btnWrong.textContent = dim.wrong; 
     btnWrong.onclick = () => handleGuideAnswer(false, dim, clue);
 
     const btns = Math.random() > 0.5 ? [btnCorrect, btnWrong] : [btnWrong, btnCorrect];
@@ -1237,17 +1061,14 @@ function startPreScanGuide(partKey) {
 }
 
 function handleGuideAnswer(isCorrect, dim, clueText) {
-  // Disable buttons
   [...guideBtns.children].forEach(btn => btn.style.pointerEvents = "none");
   
   if(isCorrect) {
-    // Correct
     [...guideBtns.children].forEach(btn => {
       if(btn.textContent === dim.label) btn.classList.add("correct");
     });
     typeText(guideAiText, `沒錯！觀察「${dim.label}」是關鍵！\n這是這隻鳥的特徵線索，請記住它並掃描圖卡：`, 15);
   } else {
-    // Wrong
     [...guideBtns.children].forEach(btn => {
       if(btn.textContent === dim.wrong) btn.classList.add("wrong");
       if(btn.textContent === dim.label) btn.classList.add("correct");
@@ -1255,7 +1076,6 @@ function handleGuideAnswer(isCorrect, dim, clueText) {
     typeText(guideAiText, `其實「${dim.wrong}」也重要，但這隻鳥的「${dim.label}」特徵更明顯喔！\n請看這個線索，並找出對應的圖卡：`, 15);
   }
 
-  // Show clue and scan button
   setTimeout(() => {
     guideResult.classList.remove("hidden");
     guideRealClue.textContent = `「${clueText}」`;
@@ -1266,14 +1086,11 @@ function closeGuideModal() {
   guideModal.classList.add("hidden");
 }
 
-/** ===========================
- * 14) In-page QR scanning + preview
- * =========================== */
 let scanning = false;
 let scanRaf = 0;
 let scanCooldownUntil = 0;
 let lastScanMsgAt = 0;
-let scanErrorPause = false; // Flag to pause scan loop during error modal
+let scanErrorPause = false;
 
 const offCanvas = document.createElement("canvas");
 const offCtx = offCanvas.getContext("2d", { willReadFrequently: true });
@@ -1296,7 +1113,6 @@ function openScan(){
     return;
   }
   
-  // Close Guide if open
   closeGuideModal();
 
   if(typeof jsQR !== "function"){
@@ -1381,7 +1197,7 @@ function scanLoop(){
   if(!scanning) return;
   if(scanErrorPause) {
      scanRaf = requestAnimationFrame(scanLoop);
-     return; // Pause scanning logic but keep loop alive
+     return;
   }
 
   const video = $("camera");
@@ -1413,7 +1229,6 @@ function scanLoop(){
     offCanvas.height = outH;
     offCtx.drawImage(scanPreview, 0, 0);
 
-    // Default reticle color
     drawReticle(scanPctx, outW, outH);
 
     const now = Date.now();
@@ -1422,26 +1237,21 @@ function scanLoop(){
       const code = jsQR(img.data, outW, outH, { inversionAttempts: "dontInvert" });
 
       if(code && code.data){
-        // Logic handled in handleScannedText
         const result = handleScannedText(code.data);
         if(result === "success"){
-          drawQrBox(scanPctx, code.location, "rgba(46,125,50,.95)"); // Green
+          drawQrBox(scanPctx, code.location, "rgba(46,125,50,.95)");
           scanBadge.textContent = "讀取成功";
           scanBadge.classList.remove("error");
           setTimeout(()=>closeScan(), 500);
           return;
         }else if(result === "wrong"){
-          // Draw RED box immediately before pausing
-          drawQrBox(scanPctx, code.location, "#c62828"); // Red
-          drawReticle(scanPctx, outW, outH, "#c62828"); // Red reticle too
-
+          drawQrBox(scanPctx, code.location, "#c62828");
+          drawReticle(scanPctx, outW, outH, "#c62828");
           scanBadge.textContent = "掃描到但錯誤";
           scanBadge.classList.add("error");
           scanPreviewBox.classList.add("error");
-          
           scanCooldownUntil = now + 2000; 
         } else {
-           // Ignore
            drawQrBox(scanPctx, code.location, "rgba(46,125,50,.95)");
         }
       }else{
@@ -1461,41 +1271,35 @@ function scanLoop(){
 }
 
 function showScanErrorModal(scannedBirdKey, scannedPartKey) {
-  scanErrorPause = true; // Pause scanning
+  scanErrorPause = true;
   
-  // Use Guide Modal for Error explanation
   guideTitle.textContent = "AI 特徵比對（掃錯囉）";
   guideBtns.innerHTML = "";
   guideResult.classList.remove("hidden");
   guideRealClue.textContent = "";
   guideModal.classList.remove("hidden");
   
-  // Hide guide actions (the buttons) in Error mode
   guideActions.classList.add("hidden");
   
   const targetPart = state.pendingPart;
   const targetGuide = getGuideText(targetPart);
   const targetLabel = STEPS.find(s=>s.key===targetPart)?.label || "未知部位";
   
-  // Get scanned clue text if possible
   const scannedBird = BIRDS[scannedBirdKey] || {};
   const scannedPool = scannedBird.cluePool?.[scannedPartKey] || [];
   const scannedText = scannedPool[0] || "不明特徵";
+  const scannedBirdName = scannedBird.name || "這張卡";
   const scannedPartLabel = STEPS.find(s=>s.key===scannedPartKey)?.label || "不明部位";
 
-  // Contrastive Persuasion Message
   let msg = "";
 
-  // CASE 1: Wrong Part (Correct Bird)
   if (scannedBirdKey === birdKey && scannedPartKey !== targetPart) {
      msg = `你掃到了「${scannedPartLabel}」！\n但我們現在系統指定要找的是：「${targetLabel}」喔！\n\n這張卡顯示：${scannedText}`;
   } 
-  // CASE 2: Wrong Bird
   else {
      msg = `這張卡片不是我們要找的喔！\n但我們要找的是「${MYSTERY_NAME}」！\n\n這張卡特徵：${scannedText}`;
   }
   
-  // Append target expectation
   msg += `\n\n請再找找符合以下描述的卡片：\n『${targetGuide}』`;
   
   typeText(guideAiText, msg, 10);
@@ -1503,15 +1307,13 @@ function showScanErrorModal(scannedBirdKey, scannedPartKey) {
   btnStartScanFromGuide.textContent = "知道了，繼續掃描";
   btnStartScanFromGuide.onclick = () => {
     guideModal.classList.add("hidden");
-    scanErrorPause = false; // Resume
-    scanPreviewBox.classList.remove("error"); // Reset border
+    scanErrorPause = false;
+    scanPreviewBox.classList.remove("error");
     scanCooldownUntil = Date.now() + 1000;
   };
 }
 
 function handleScannedText(text){
-  // Fix Race Condition: If pendingPart is null, we likely already succeeded in a previous frame
-  // but scan loop hasn't closed yet. Just return success to prevent error modal.
   if(!state.pendingPart) return "success";
 
   let url;
@@ -1521,14 +1323,12 @@ function handleScannedText(text){
   const claim = url.searchParams.get("claim");
 
   if(!claim){
-    return "ignore"; // Not a game card
+    return "ignore"; 
   }
 
   const targetPart = state.pendingPart;
   
-  // Requirement 3: Detailed comparison if wrong bird or wrong part
   if((b && b !== birdKey) || (claim !== targetPart)){
-     // Trigger the detailed error modal
      showScanErrorModal(b, claim);
      return "wrong";
   }
@@ -1540,9 +1340,6 @@ function handleScannedText(text){
   return "success";
 }
 
-/** ===========================
- * 15) Fallback: claim from URL (external scanner)
- * =========================== */
 function handleClaimFromURLIfAny(){
   if(!CLAIM) return false;
   if(!state.pendingPart){
@@ -1562,9 +1359,6 @@ function handleClaimFromURLIfAny(){
   return true;
 }
 
-/** ===========================
- * 16) Quiz flow (answer -> show assemble -> next)
- * =========================== */
 function openQuiz(){
   if(Object.keys(state.clues).length < 5){
     showToast("請先收集滿 5 張線索");
@@ -1630,7 +1424,7 @@ function renderStep(){
     optionsGrid.appendChild(card);
   });
 
-  btnHintQuiz.disabled = false; // No limit
+  btnHintQuiz.disabled = false; 
 }
 
 function chooseOption(part, optKey, cardEl){
@@ -1678,22 +1472,17 @@ function openAssembleModal(partJustSolved){
 
   const doneCount = Object.keys(state.solved).length;
   btnAssembleNext.textContent = (doneCount >= 5) ? "完成" : "下一步";
-  btnAssembleNext.style.display = ""; // Ensure button is visible
+  btnAssembleNext.style.display = ""; 
   assembleModal.classList.remove("hidden");
 }
 
 function closeAssembleModal(){ assembleModal.classList.add("hidden"); }
 
-/** ===========================
- * Confetti Celebration Logic
- * =========================== */
 function triggerCelebration(callback) {
-  // 1. Show confetti container
   const container = document.getElementById("confettiOverlay");
   container.style.display = "block";
   container.innerHTML = "";
 
-  // 2. Generate particles
   const colors = ["#ffd700", "#ff6b6b", "#4ecdc4", "#45b7d1", "#ffffff"];
   for(let i=0; i<60; i++){
     const p = document.createElement("div");
@@ -1705,7 +1494,6 @@ function triggerCelebration(callback) {
     container.appendChild(p);
   }
 
-  // 3. Wait ~2.5s then callback (Reveal)
   setTimeout(() => {
     container.style.display = "none";
     container.innerHTML = "";
@@ -1714,24 +1502,18 @@ function triggerCelebration(callback) {
 }
 
 function assembleNext(){
-  // Check if we are done with all parts
   const doneCount = Object.keys(state.solved).length;
   
   if(doneCount >= 5){
-    // Celebration path:
-    // 1. Hide button to prevent double clicks
     btnAssembleNext.style.display = "none";
-    
-    // 2. Trigger confetti while modal is STILL OPEN
     triggerCelebration(() => {
-       closeAssembleModal(); // Now close old modal
-       openReveal();         // And open reveal modal
-       btnAssembleNext.style.display = ""; // Reset button for future
+       closeAssembleModal(); 
+       openReveal();
+       btnAssembleNext.style.display = "";
     });
     return;
   }
 
-  // Normal path (just next step)
   closeAssembleModal();
   const nextIdx = STEPS.findIndex(s=>!state.solved[s.key]);
   state.currentStep = (nextIdx>=0)?nextIdx:0;
@@ -1766,35 +1548,25 @@ function renderAssembleBirdSVG(){
   </svg>`;
 }
 
-/** ===========================
- * 17) Interactive AI Hint Logic
- * =========================== */
 let typingTimer = 0;
 
 function startAiDialogue(){
-  // Remove limit check
-  // Identify current context
   const partKey = STEPS[state.currentStep].key;
   const label = STEPS[state.currentStep].label;
   const collected = Object.keys(state.clues).length;
 
-  // Prepare Data
   const hintData = getInteractiveHintData(partKey);
 
-  // Setup Modal UI
   aiModal.classList.remove("hidden");
   aiOptions.style.display = "none";
   aiOptions.innerHTML = "";
   aiOk.textContent = "取消";
 
-  // Type Greeting Question
   const greeting = `我們收集到 ${collected} 個線索了！關於『${label}』的特徵，你剛才觀察到的細節是什麼？`;
   typeText(aiText, greeting, 15);
 
-  // Create Options (After slight delay)
   setTimeout(() => {
     aiOptions.style.display = "grid";
-    // Shuffle options
     hintData.options.sort(() => Math.random() - 0.5);
     
     hintData.options.forEach(opt => {
@@ -1808,7 +1580,6 @@ function startAiDialogue(){
 }
 
 function handleAiChoice(option, strategyLines, partKey){
-  // Disable buttons
   aiOptions.style.display = "none";
   
   let msg = "";
@@ -1829,7 +1600,6 @@ function handleAiChoice(option, strategyLines, partKey){
 
 function getEcologyText(part, isCorrect){
   if(!isCorrect) return "";
-  // Simple fake ecology logic for demo
   if(part === "legs") return "這樣的顏色在樹枝間很顯眼，或者是很好的保護色。";
   if(part === "wing") return "這能幫助牠在飛行時更流暢，或者在林間穿梭。";
   if(part === "tail") return "這能控制飛行方向，或者在求偶時展示。";
@@ -1842,7 +1612,6 @@ function getInteractiveHintData(partKey) {
   const correctKey = bird.quiz[partKey].correct;
   const correctLabel = OPTION_LIB[partKey][correctKey].label; 
   
-  // Get a wrong option for distractor
   const allOpts = bird.quiz[partKey].options;
   const wrongKey = allOpts.find(k => k !== correctKey) || allOpts[0];
   const wrongLabel = OPTION_LIB[partKey][wrongKey].label;
@@ -1857,10 +1626,7 @@ function getInteractiveHintData(partKey) {
   };
 }
 
-// Hook up button
 btnHintQuiz.addEventListener("click", startAiDialogue);
-
-// Close handler
 closeAi.addEventListener("click", closeAiModal);
 aiOk.addEventListener("click", closeAiModal);
 
@@ -1883,12 +1649,9 @@ function typeText(el, text, speedMs=14){
   }, speedMs);
 }
 
-/** ===========================
- * 18) Reveal
- * =========================== */
 function openReveal(){
   revealModal.classList.remove("hidden");
-  revealName.textContent = bird.name; // SHOW REAL NAME
+  revealName.textContent = bird.name;
   revealBird.innerHTML = `<div style="width:min(520px,92vw)">${renderFinalBirdSVG()}</div>`;
   revealSummary.textContent = bird.summary;
 }
@@ -1914,9 +1677,6 @@ function renderFinalBirdSVG(){
   </svg>`;
 }
 
-/** ===========================
- * 19) Misc
- * =========================== */
 function escapeHtml(s){
   return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
@@ -1927,9 +1687,6 @@ function copyLink(){
     .catch(()=>showToast("複製失敗：請手動複製網址列"));
 }
 
-/** ===========================
- * 20) Init
- * =========================== */
 function init(){
   loadState();
 
@@ -1940,7 +1697,7 @@ function init(){
     return;
   }
 
-  elBirdName.textContent = MYSTERY_NAME; // HIDE NAME
+  elBirdName.textContent = MYSTERY_NAME; 
   elBirdSub.textContent = bird.sub;
 
   renderBird(state.assembledCount);
@@ -1965,7 +1722,6 @@ function init(){
 
   btnFeed.addEventListener("click", feedBird);
   
-  // Adjusted: btnScan triggers Guide if pending
   btnScan.addEventListener("click", ()=>{
     if(state.pendingPart) startPreScanGuide(state.pendingPart);
   });
@@ -1989,6 +1745,10 @@ function init(){
 
   closeQuiz.addEventListener("click", closeQuizModal);
   btnCloseQuiz2.addEventListener("click", closeQuizModal);
+
+  btnHintQuiz.addEventListener("click", startAiDialogue);
+  closeAi.addEventListener("click", closeAiModal);
+  aiOk.addEventListener("click", closeAiModal);
 
   closeAssemble.addEventListener("click", closeAssembleModal);
   btnAssembleNext.addEventListener("click", assembleNext);
