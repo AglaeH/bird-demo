@@ -359,12 +359,27 @@
     .guideBtn.correct{ background:rgba(46,125,50,.1); border-color:var(--good); color:var(--good); }
     .guideBtn.wrong{ opacity:0.5; text-decoration:line-through; }
 
+    /* Confetti Animation */
+    #confettiOverlay{
+      position:fixed; inset:0; pointer-events:none; z-index:90; overflow:hidden; display:none;
+    }
+    .confetti{
+      position:absolute; width:10px; height:10px; background:#ffd700;
+      top:-20px; opacity:0;
+    }
+    @keyframes drop-confetti{
+      0%{ transform:translateY(0) rotate(0deg); opacity:1; }
+      100%{ transform:translateY(110vh) rotate(720deg); opacity:0; }
+    }
+
   </style>
 </head>
 
 <body>
 <div id="app">
   <video id="camera" autoplay playsinline muted></video>
+
+  <div id="confettiOverlay"></div>
 
   <div id="overlay">
     <div class="topbar">
@@ -1676,11 +1691,41 @@ function openAssembleModal(partJustSolved){
 
 function closeAssembleModal(){ assembleModal.classList.add("hidden"); }
 
+/** ===========================
+ * Confetti Celebration Logic
+ * =========================== */
+function triggerCelebration() {
+  // 1. Show confetti container
+  const container = document.getElementById("confettiOverlay");
+  container.style.display = "block";
+  container.innerHTML = "";
+
+  // 2. Generate particles
+  const colors = ["#ffd700", "#ff6b6b", "#4ecdc4", "#45b7d1", "#ffffff"];
+  for(let i=0; i<60; i++){
+    const p = document.createElement("div");
+    p.className = "confetti";
+    p.style.left = Math.random() * 100 + "%";
+    p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animation = `drop-confetti ${2 + Math.random()}s linear forwards`;
+    p.style.animationDelay = Math.random() * 1 + "s";
+    container.appendChild(p);
+  }
+
+  // 3. Wait ~2.5s then Reveal
+  setTimeout(() => {
+    container.style.display = "none";
+    container.innerHTML = "";
+    openReveal();
+  }, 2500);
+}
+
 function assembleNext(){
   closeAssembleModal();
   const doneCount = Object.keys(state.solved).length;
   if(doneCount >= 5){
-    openReveal();
+    // Instead of revealing directly, trigger celebration first!
+    triggerCelebration();
     return;
   }
   const nextIdx = STEPS.findIndex(s=>!state.solved[s.key]);
