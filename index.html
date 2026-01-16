@@ -320,19 +320,20 @@
 
     /* AI Options Area */
     .aiOptions{
-      display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px;
+      display:grid; grid-template-columns: 1fr; gap:10px; margin-top:12px;
     }
     .aiOptBtn{
       background:#fff;
       border:2px solid rgba(0,0,0,.12);
       border-radius:16px;
-      padding:12px;
+      padding:14px;
       font-weight:900;
       font-size:15px;
       color: var(--ink);
       cursor:pointer;
-      text-align:center;
+      text-align:left;
       transition:transform .1s, background .1s;
+      box-shadow: 0 4px 10px rgba(0,0,0,.05);
     }
     .aiOptBtn:active{transform:scale(0.98);}
     .aiOptBtn:hover{background:var(--panel2);}
@@ -385,7 +386,7 @@
         <span style="opacity:.6">|</span>
         待掃 <strong id="pendingText">—</strong>
         <span style="opacity:.6">|</span>
-        AI 提示 <strong id="hintLeft">2</strong>/2
+        AI 提示 <strong>∞</strong>
       </div>
     </div>
 
@@ -464,7 +465,7 @@
 
       <div class="footer">
         <div class="left">
-          <div class="kpi" id="kpiText">AI 提示：不爆雷，只把線索拆成可觀察的重點。</div>
+          <div class="kpi" id="kpiText">不知道選哪個？問問 AI 助教</div>
           <button class="btnSmall btnGhost" id="btnHintQuiz">AI 提示</button>
         </div>
         <div class="right">
@@ -477,7 +478,7 @@
   <div class="modal hidden" id="aiModal">
     <div class="box" style="max-width:720px;">
       <div class="boxHeader">
-        <div class="title">AI 助教提示</div>
+        <div class="title">AI 助教 - 觀點交流</div>
         <button class="xbtn" id="closeAi">×</button>
       </div>
 
@@ -990,7 +991,7 @@ function renderChips(){
 function renderCounters(){
   const count = Object.keys(state.clues).length;
   elClueCount.textContent = String(count);
-  elHintLeft.textContent = String(state.hintLeft);
+  elHintLeft.textContent = "∞"; // Unlimited hints
   elPendingText.textContent = state.pendingPart ? STEPS.find(s=>s.key===state.pendingPart).label : "—";
 
   btnQuiz.disabled = (count < 5) || !!state.pendingPart;
@@ -1629,7 +1630,7 @@ function renderStep(){
     optionsGrid.appendChild(card);
   });
 
-  btnHintQuiz.disabled = (state.hintLeft <= 0);
+  btnHintQuiz.disabled = false; // No limit
 }
 
 function chooseOption(part, optKey, cardEl){
@@ -1771,14 +1772,11 @@ function renderAssembleBirdSVG(){
 let typingTimer = 0;
 
 function startAiDialogue(){
-  if(state.hintLeft <= 0){
-    showToast("AI 提示已用完");
-    return;
-  }
-
+  // Remove limit check
   // Identify current context
   const partKey = STEPS[state.currentStep].key;
   const label = STEPS[state.currentStep].label;
+  const collected = Object.keys(state.clues).length;
 
   // Prepare Data
   const hintData = getInteractiveHintData(partKey);
@@ -1789,10 +1787,11 @@ function startAiDialogue(){
   aiOptions.innerHTML = "";
   aiOk.textContent = "取消";
 
-  // Type Question
-  typeText(aiText, hintData.question, 15);
+  // Type Greeting Question
+  const greeting = `我們收集到 ${collected} 個線索了！關於『${label}』的特徵，你剛才觀察到的細節是什麼？`;
+  typeText(aiText, greeting, 15);
 
-  // Create Options (After slight delay or immediately)
+  // Create Options (After slight delay)
   setTimeout(() => {
     aiOptions.style.display = "grid";
     // Shuffle options
@@ -1802,34 +1801,41 @@ function startAiDialogue(){
       const btn = document.createElement("div");
       btn.className = "aiOptBtn";
       btn.textContent = opt.text;
-      btn.onclick = () => handleAiChoice(opt, hintData.strategy);
+      btn.onclick = () => handleAiChoice(opt, hintData.strategy, partKey);
       aiOptions.appendChild(btn);
     });
   }, 1000);
 }
 
-function handleAiChoice(option, strategyLines){
+function handleAiChoice(option, strategyLines, partKey){
   // Disable buttons
   aiOptions.style.display = "none";
   
-  // Deduct hint
-  state.hintLeft -= 1;
-  saveState();
-  renderCounters();
-
   let msg = "";
   const strategies = strategyLines.join("\n");
+  const ecology = getEcologyText(partKey, option.isCorrect);
 
   if(option.isCorrect){
-    msg = `沒錯！「${option.text}」是關鍵特徵！\n\nAI 建議觀察步驟：\n${strategies}`;
+    msg = `對！「${option.coreFeature}」是關鍵，${ecology}\n\n★ 科學家建議篩選策略：\n${strategies}`;
+  } else if(option.isGuide){
+    msg = `沒關係，我們一起來看。\n這隻鳥的特徵其實偏向「${option.correctFeature}」。\n\n★ 科學家建議篩選策略：\n${strategies}`;
   } else {
-    // Find correct one contextually (hacky but works for demo)
-    // Actually we can just give general guidance
-    msg = `其實...這隻鳥的特徵是偏向另一種喔。\n\nAI 建議觀察步驟：\n${strategies}`;
+    msg = `那可能是另一種鳥喔，我們再看一次線索卡...\n${MYSTERY_NAME}其實是「${option.correctFeature}」的。\n\n★ 科學家建議篩選策略：\n${strategies}`;
   }
 
   typeText(aiText, msg, 10);
-  aiOk.textContent = "知道了";
+  aiOk.textContent = "知道了，回去答題";
+}
+
+function getEcologyText(part, isCorrect){
+  if(!isCorrect) return "";
+  // Simple fake ecology logic for demo
+  if(part === "legs") return "這樣的顏色在樹枝間很顯眼，或者是很好的保護色。";
+  if(part === "wing") return "這能幫助牠在飛行時更流暢，或者在林間穿梭。";
+  if(part === "tail") return "這能控制飛行方向，或者在求偶時展示。";
+  if(part === "head") return "這讓同伴容易辨識，或者能融入背景環境。";
+  if(part === "body") return "這是最主要的辨識區塊，通常與棲息環境有關。";
+  return "這是很重要的特徵喔。";
 }
 
 function getInteractiveHintData(partKey) {
@@ -1841,18 +1847,13 @@ function getInteractiveHintData(partKey) {
   const wrongKey = allOpts.find(k => k !== correctKey) || allOpts[0];
   const wrongLabel = OPTION_LIB[partKey][wrongKey].label;
 
-  // Simple extraction of keyword (e.g. "粉紅腳" -> "粉紅色")
-  // For demo simplicity, just use the label or manual mapping if needed.
-  // Here we use the label directly which is usually distinct enough.
-
   return {
-    question: `關於${MYSTERY_NAME}的「${STEPS.find(s=>s.key===partKey).label}」，你還記得線索中提到的重點嗎？`,
     options: [
-      { text: correctLabel, isCorrect: true },
-      { text: wrongLabel, isCorrect: false },
-      { text: "忘記了 / 我想看提示", isCorrect: false }
+      { text: `我記得是「${correctLabel}」`, isCorrect: true, coreFeature: correctLabel },
+      { text: `我記得是「${wrongLabel}」`, isCorrect: false, correctFeature: correctLabel },
+      { text: "我需要你引導我觀察", isGuide: true, isCorrect: false, correctFeature: correctLabel }
     ],
-    strategy: bird.ai[partKey] || ["仔細觀察顏色", "比較形狀差異"]
+    strategy: bird.ai[partKey] || ["1. 先看主色", "2. 比對形狀", "3. 排除差異太大的"]
   };
 }
 
