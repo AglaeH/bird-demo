@@ -233,88 +233,74 @@
       backdrop-filter: blur(8px);
     }
 
-    /* Feed overlay (falling pellets) */
-    #feedOverlay{
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%,-50%);
-      width:min(520px,92vw);
-      height:min(520px,70vh);
-      z-index:34;           /* under feedAnim(35) */
-      pointer-events:none;
-      opacity:0;
-    }
-    #feedOverlay.show{
-      opacity:1;
-      animation:feedOverlayFade 950ms ease-out 1;
-    }
-    @keyframes feedOverlayFade{
-      0%{ opacity:0; transform:translate(-50%,-50%) scale(.98); }
-      15%{ opacity:1; }
-      85%{ opacity:1; }
-      100%{ opacity:0; transform:translate(-50%,-50%) scale(1.02); }
-    }
-
-    #feedOverlay .feedHud{
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%,-50%);
-      background:rgba(0,0,0,.55);
-      color:#fff;
-      border:1px solid rgba(255,255,255,.14);
-      border-radius:16px;
-      padding:10px 12px;
-      backdrop-filter: blur(8px);
-      text-align:center;
-      min-width: 220px;
-    }
-    #feedOverlay .feedTitle{ font-weight:900; font-size:16px; }
-    #feedOverlay .feedSub{ font-size:13px; opacity:.9; margin-top:3px; }
-
-    #feedOverlay .pellets{
-      position:absolute;
+        /* Feed overlay (drop seeds + bowl) */
+    #feedOverlay.feedOverlay{
+      position:fixed;
       inset:0;
-      overflow:hidden;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:50;
+      background: rgba(0,0,0,.18);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      pointer-events:none;
     }
-    #feedOverlay .pellet{
+    #feedOverlay.feedOverlay.show{ display:flex; }
+
+    #feedOverlay .feedCard{
+      width: min(360px, calc(100% - 32px));
+      background: rgba(255,255,255,.92);
+      border-radius: 22px;
+      border: 1px solid rgba(0,0,0,.10);
+      box-shadow: var(--shadow);
+      padding: 14px 14px 16px;
+      text-align:center;
+    }
+    #feedOverlay .feedTitle{ font-weight:850; font-size:16px; margin-bottom:10px; color:#111; }
+    #feedOverlay .feedSub{ color: rgba(0,0,0,.64); font-size:13px; margin-top:10px; }
+
+    #feedOverlay .feedAnim{
+      position:relative;
+      height: 140px;
+      margin: 6px auto 0;
+      width: 220px;
+    }
+    #feedOverlay .bowl{
       position:absolute;
-      top:-14px;
-      width:10px;
-      height:10px;
-      border-radius:999px;
-      background:rgba(240,193,75,.95);
-      box-shadow: 0 10px 18px rgba(0,0,0,.25);
-      opacity:0;
-      transform:translateY(0) scale(.9);
+      left:50%;
+      bottom: 10px;
+      width: 140px;
+      height: 44px;
+      transform: translateX(-50%);
+      border-radius: 0 0 50px 50px;
+      border: 3px solid rgba(163,58,42,.65);
+      border-top: 0;
+      background: rgba(163,58,42,.08);
     }
-    #feedOverlay.show .pellet{
-      animation:pelletDrop 900ms ease-in 1;
+    #feedOverlay .seed{
+      position:absolute;
+      width: 10px; height: 10px;
+      border-radius: 999px;
+      background: rgba(163,58,42,.9);
+      top: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+      animation: fall 0.8s ease-in infinite;
     }
-    @keyframes pelletDrop{
-      0%{ opacity:0; transform:translateY(0) scale(.9); }
-      15%{ opacity:1; }
-      100%{ opacity:0; transform:translateY(70vh) scale(1); }
+    #feedOverlay .seed.s1{ left: 35%; animation-delay: .00s; }
+    #feedOverlay .seed.s2{ left: 50%; animation-delay: .12s; }
+    #feedOverlay .seed.s3{ left: 62%; animation-delay: .22s; }
+    #feedOverlay .seed.s4{ left: 45%; animation-delay: .32s; }
+
+    @keyframes fall{
+      0%{ transform: translate(-50%, 0) scale(.9); opacity: .0; }
+      15%{ opacity: .95; }
+      70%{ transform: translate(-50%, 106px) scale(1); opacity: .95; }
+      100%{ transform: translate(-50%, 106px) scale(.4); opacity: 0; }
     }
 
-    /* scattered positions + delays */
-    #feedOverlay .p1{ left:12%; animation-delay:0ms; }
-    #feedOverlay .p2{ left:22%; width:8px; height:8px; animation-delay:60ms; }
-    #feedOverlay .p3{ left:32%; animation-delay:120ms; }
-    #feedOverlay .p4{ left:44%; width:7px; height:7px; animation-delay:180ms; }
-    #feedOverlay .p5{ left:55%; animation-delay:240ms; }
-    #feedOverlay .p6{ left:66%; width:9px; height:9px; animation-delay:300ms; }
-    #feedOverlay .p7{ left:76%; animation-delay:360ms; }
-    #feedOverlay .p8{ left:86%; width:7px; height:7px; animation-delay:420ms; }
-    #feedOverlay .p9{ left:18%; animation-delay:150ms; }
-    #feedOverlay .p10{ left:38%; width:8px; height:8px; animation-delay:260ms; }
-    #feedOverlay .p11{ left:58%; animation-delay:340ms; }
-    #feedOverlay .p12{ left:80%; width:9px; height:9px; animation-delay:460ms; }
-
-
-
-    /* Feed animation (drop clue card) */
+/* Feed animation (drop clue card) */
     #feedAnim{
       position:absolute;
       left:50%;
@@ -438,11 +424,22 @@
 
       <div class="toast" id="toast"></div>
 
-      <!-- Feed overlay: falling food -->
-      <div id="feedOverlay" aria-hidden="true">
-        <div class="feedHud">
+      <!-- Feed overlay: dropping seeds -->
+      <div id="feedOverlay" class="feedOverlay" aria-hidden="true">
+        <div class="feedCard">
           <div class="feedTitle">餵食中…</div>
-          <div class="feedSub" id="feedSubText">掉落飼料中…</div>
+          <div class="feedAnim" aria-hidden="true">
+            <div class="seed s1"></div>
+            <div class="seed s2"></div>
+            <div class="seed s3"></div>
+            <div class="seed s4"></div>
+            <div class="bowl"></div>
+          </div>
+          <div class="feedSub" id="feedSubText">掉落一張線索卡</div>
+        </div>
+      </div>
+
+<div class="feedSub" id="feedSubText">掉落飼料中…</div>
         </div>
         <div class="pellets" aria-hidden="true">
           <span class="pellet p1"></span><span class="pellet p2"></span><span class="pellet p3"></span><span class="pellet p4"></span>
@@ -1135,13 +1132,12 @@ function playFeedAnim(partKey){
   const step = STEPS.find(s=>s.key===partKey);
   $("feedAnimPart").textContent = `線索：${step ? step.label : "—"}`;
 
-  // 餵食 overlay（掉飼料）
-  if(feedSubText) feedSubText.textContent = "掉落飼料中…";
+  // Feed overlay（掉落飼料動畫）
+  if(feedSubText) feedSubText.textContent = "掉落一張線索卡";
   if(feedOverlay){
-    feedOverlay.classList.remove("show");
-    void feedOverlay.offsetWidth;
     feedOverlay.classList.add("show");
     feedOverlay.setAttribute("aria-hidden","false");
+
     setTimeout(() => {
       feedOverlay.classList.remove("show");
       feedOverlay.setAttribute("aria-hidden","true");
