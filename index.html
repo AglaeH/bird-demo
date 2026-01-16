@@ -108,6 +108,7 @@
       flex:1; padding:12px; border-radius:12px; border:2px solid #ddd;
       background:#fff; cursor:pointer; font-weight:bold;
     }
+    .optBtn:hover { background: #f0f0f0; }
 
     /* 掃描 Modal */
     .modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:14px; z-index:150; }
@@ -121,7 +122,7 @@
     .toast{
       position:absolute; left:50%; transform:translateX(-50%); bottom:118px;
       background:rgba(0,0,0,.70); color:#fff; padding:10px 14px; border-radius:999px;
-      opacity:0; transition:opacity .2s; z-index: 1000;
+      opacity:0; transition:opacity .2s; z-index: 1000; pointer-events: none;
     }
     .toast.show{ opacity:1; }
   </style>
@@ -208,42 +209,42 @@
  * =========================== */
 const BIRDS = {
   sparrow: {
+    key: "sparrow",
     name: "麻雀",
-    palette: { body:"#b07a45", belly:"#e6d3b2", wing:"#6a4529", tail:"#7a5637", head:"#b07a45", legs:"#6b4a2f", beak:"#c89c4a" },
     guidance: {
       legs: {
         question: "這隻鳥要掉落『腳』的線索了！你覺得觀察鳥類的腳，『顏色』還是『長短』比較容易分辨出它？",
         options: [
           { text: "顏色", correct: true, feedback: "沒錯！顏色是關鍵。這隻鳥的腳是褐色的，快去找這張線索卡！" },
-          { text: "長短", correct: false, feedback: "觀察長短也不錯！但這隻鳥的顏色更有特色。它是褐色的，去找找看吧！" }
+          { text: "長短", correct: false, feedback: "觀察長短也不錯！但這隻鳥的顏色更有特色。它是褐色的，再想一下選選看吧！" }
         ]
       },
       body: {
         question: "『身體』要出現了！你覺得應該注意『羽毛的條紋』還是『鳥的胖瘦』？",
         options: [
           { text: "羽毛條紋", correct: true, feedback: "正確！麻雀背部有明顯的黑色條紋。去找這張卡吧！" },
-          { text: "胖瘦", correct: false, feedback: "胖瘦會隨季節改變喔～看背部的黑色條紋會更準確！" }
+          { text: "胖瘦", correct: false, feedback: "胖瘦會隨季節改變喔～看背部的黑色條紋會更準確，選選看另一個吧！" }
         ]
       },
       wing: {
-        question: "這張是『翅膀』線索！你覺得看『有沒有白點斑紋』還是『羽毛長度』更專業？",
+        question: "這張是『翅膀』線索！你覺得看『有沒有斑紋』還是『羽毛長度』更專業？",
         options: [
           { text: "斑紋", correct: true, feedback: "太棒了！翅膀上有淡色的翼帶，是麻雀的重要特徵！" },
-          { text: "羽毛長度", correct: false, feedback: "長度很難用肉眼量啦～看翅膀上的兩條淡色翼帶會更明顯喔！" }
+          { text: "羽毛長度", correct: false, feedback: "長度很難用肉眼量啦～看翅膀上的兩條淡色翼帶會更明顯喔，試試另一個！" }
         ]
       },
       tail: {
-        question: "找『尾巴』時，你覺得要看『末端平不平』還是『會不會翹起來』？",
+        question: "找『尾巴』時，你覺得要看『末端形狀』還是『會不會翹起來』？",
         options: [
           { text: "末端形狀", correct: true, feedback: "沒錯！麻雀的尾巴末端比較平，像方尾。去找找看！" },
-          { text: "會不會翹", correct: false, feedback: "翹不翹是動作，看它末端平平的「方尾」特徵才科學喔！" }
+          { text: "會不會翹", correct: false, feedback: "翹不翹是動作，看它末端平平的「方尾」特徵才科學喔，再選一次吧！" }
         ]
       },
       head: {
-        question: "最後是『頭部』，你覺得『有沒有白眼圈』還是『嘴巴長短』比較好認？",
+        question: "最後是『頭部』，你覺得『眼周特徵』還是『嘴巴長短』比較好認？",
         options: [
-          { text: "有沒有眼圈", correct: true, feedback: "專業！麻雀沒有白眼圈，但臉頰有黑斑。快去確認！" },
-          { text: "嘴巴長短", correct: false, feedback: "嘴巴大家都差不多～看它沒有白眼圈且臉頰有黑斑才是重點！" }
+          { text: "眼周特徵", correct: true, feedback: "專業！麻雀沒有白眼圈，但臉頰有黑斑。快去確認！" },
+          { text: "嘴巴長短", correct: false, feedback: "嘴巴大家都差不多～看它臉頰的特徵才是重點，選選看另一個吧！" }
         ]
       }
     }
@@ -253,10 +254,13 @@ const BIRDS = {
 const STEPS = ["legs", "body", "wing", "tail", "head"];
 const labels = { legs:"腳", body:"身體", wing:"翅膀", tail:"尾巴", head:"頭/記號" };
 
+const urlParams = new URLSearchParams(window.location.search);
+const birdKey = urlParams.get('bird') || 'sparrow';
+
 let state = {
   clues: {},
   pendingPart: null,
-  currentBird: BIRDS.sparrow,
+  currentBird: BIRDS[birdKey] || BIRDS.sparrow,
   cameraOn: false
 };
 
@@ -272,7 +276,9 @@ async function startCamera() {
     state.cameraOn = true;
     $("btnCamera").innerText = "相機已啟動";
     $("btnCamera").disabled = true;
-  } catch(e) { showToast("無法啟動相機"); }
+  } catch(e) { 
+    showToast("相機啟動失敗，請確認權限。"); 
+  }
 }
 
 function scanLoop() {
@@ -287,10 +293,13 @@ function scanLoop() {
       const code = jsQR(imageData.data, imageData.width, imageData.height);
 
       if (code) {
-        $("scanFeedback").style.borderColor = "#2e7d32";
-        // 模擬掃描成功
-        if (code.data.includes(state.pendingPart) || code.data.length > 0) {
-            setTimeout(() => grantClue(state.pendingPart), 500);
+        // 嚴格 QR Code 驗證
+        const success = handleScannedText(code.data);
+        if (success) {
+          $("scanFeedback").style.borderColor = "#2e7d32";
+          setTimeout(() => grantClue(state.pendingPart), 600);
+        } else {
+          $("scanFeedback").style.borderColor = "#c62828"; // 掃錯顯示紅色
         }
       } else {
         $("scanFeedback").style.borderColor = "transparent";
@@ -300,8 +309,22 @@ function scanLoop() {
   }
 }
 
+function handleScannedText(data) {
+  try {
+    const url = new URL(data);
+    const b = url.searchParams.get("bird");
+    const claim = url.searchParams.get("claim");
+    
+    // 檢查鳥種與部位是否匹配
+    return (b === state.currentBird.key && claim === state.pendingPart);
+  } catch (e) {
+    // 如果不是網址，直接字串比對 (兼容簡單 QR)
+    return data.includes(state.currentBird.key) && data.includes(state.pendingPart);
+  }
+}
+
 /** ===========================
- * UI 流程 (餵食 -> 引導 -> 掃描)
+ * UI 流程
  * =========================== */
 function showToast(msg) {
   const t = $("toast"); t.innerText = msg; t.classList.add("show");
@@ -310,7 +333,7 @@ function showToast(msg) {
 
 $("btnFeed").onclick = () => {
   const missing = STEPS.filter(s => !state.clues[s]);
-  if (missing.length === 0) return showToast("線索已集滿！");
+  if (missing.length === 0) return showToast("線索已集滿，請開始辨認！");
   
   state.pendingPart = missing[0];
   $("feedOverlay").classList.add("show");
@@ -345,39 +368,50 @@ function showAiGuidance(part) {
 }
 
 function handleChoice(idx, data) {
-  $("optionGroup").classList.remove("show");
-  typeWriter($("aiText"), data.options[idx].feedback, () => {
-    $("guidanceNext").classList.remove("hidden");
-    $("guidanceNext").onclick = () => {
-      $("guidanceModal").classList.remove("show");
-      openScan();
-    };
+  const choice = data.options[idx];
+  typeWriter($("aiText"), choice.feedback, () => {
+    if (choice.correct) {
+      $("optionGroup").classList.remove("show");
+      $("guidanceNext").classList.remove("hidden");
+      $("guidanceNext").onclick = () => {
+        $("guidanceModal").classList.remove("show");
+        openScan();
+      };
+    } else {
+      // 選錯：保持選項，讓使用者重選
+      $("optionGroup").classList.add("show");
+    }
   });
 }
 
 function openScan() {
-  if (!state.cameraOn) return showToast("請先啟動相機");
+  if (!state.cameraOn) return showToast("請先點選啟動相機！");
   $("scanOverlay").classList.remove("hidden");
   $("scanNeedText").innerText = labels[state.pendingPart];
-  $("scanHintText").innerText = "請根據 AI 的引導，找出對應特徵的鳥類線索卡進行掃描。";
+  $("scanHintText").innerText = "請掃描對應的線索卡背面 QR Code。";
   requestAnimationFrame(scanLoop);
 }
 
 function closeScan() { $("scanOverlay").classList.add("hidden"); }
 
 function grantClue(part) {
-  state.clues[part] = true;
-  state.pendingPart = null;
-  closeScan();
-  showToast("獲取線索成功！");
-  renderUI();
+  if (!state.clues[part]) {
+    state.clues[part] = true;
+    state.pendingPart = null;
+    closeScan();
+    showToast(`獲取${labels[part]}線索成功！`);
+    renderUI();
+  }
 }
 
 function renderUI() {
-  $("clueCount").innerText = Object.keys(state.clues).length;
+  const clueKeys = Object.keys(state.clues);
+  $("clueCount").innerText = clueKeys.length;
   $("pendingText").innerText = state.pendingPart ? labels[state.pendingPart] : "—";
   $("btnScan").disabled = !state.pendingPart;
-  $("btnQuiz").disabled = Object.keys(state.clues).length < 5;
+  
+  // 修正：集滿 5 個後才可作答
+  $("btnQuiz").disabled = (clueKeys.length < 5);
   
   const chipContainer = $("clueChips");
   chipContainer.innerHTML = "";
@@ -390,9 +424,18 @@ function renderUI() {
 }
 
 // 初始化
-$("btnCamera").onclick = startCamera;
-$("btnReset").onclick = () => location.reload();
-renderUI();
+function init() {
+  $("birdName").innerText = state.currentBird.name;
+  $("btnCamera").onclick = startCamera;
+  $("btnReset").onclick = () => location.reload();
+  
+  // 1. 開程式自動提示相機
+  setTimeout(startCamera, 1000); 
+  
+  renderUI();
+}
+
+init();
 </script>
 </body>
 </html>
