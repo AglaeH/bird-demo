@@ -52,7 +52,7 @@
     .optBtn:hover{border-color:var(--accent);background:#fffdfa;}
     .optBtn.correct{border-color:var(--good);background:#e8f5e9;}
 
-    /* 掃描強化視覺 */
+    /* 掃描視覺 */
     .scanBox{position:absolute;border:5px solid var(--neon-green);border-radius:15px;pointer-events:none;z-index:5;display:none;box-shadow: 0 0 15px var(--neon-green);}
     .scanBox.error{border-color:var(--neon-red);box-shadow: 0 0 15px var(--neon-red);}
     canvas#scanPreview{width:100%;border-radius:18px;background:#000;}
@@ -83,7 +83,7 @@
       <div id="instructionText" style="font-size:13px;color:var(--accent);margin-top:12px;font-weight:bold;">點擊餵鳥開始解謎探究</div>
     </div>
     <div class="bottom">
-      <button id="btnFeed">餵鳥 (啟動 AI 引導)</button>
+      <button id="btnFeed">餵鳥</button>
       <button id="btnQuiz" disabled style="background:#222;color:#fff;">開始辨認 (0/5)</button>
       <button onclick="location.reload()" style="background:#444;color:#fff;font-size:12px;padding:8px;">重新開始</button>
     </div>
@@ -141,7 +141,7 @@ const BIRDS = {
         q: "這隻鳥要掉落『腳』的線索了！你覺得觀察這隻鳥的腳時，什麼特徵最有辨識度？",
         options: [
           { t: "腳的顏色 (褐色)", isBest: true, feedback: "沒錯！顏色是關鍵，對於這隻小鳥來說，褐色的細腳很特別。", clue: "腳短短、偏褐色" },
-          { t: "腳的長度", isBest: false, feedback: "觀察長短也不錯！但這隻鳥的顏色更有特色喔，去找找褐色的線索吧！", clue: "腳短短、偏褐色" }
+          { t: "腳的重量", isBest: false, feedback: "觀察重量也不錯！但這隻鳥的顏色更有特色喔，去找找褐色的線索吧！", clue: "腳短短、偏褐色" }
         ]
       },
       body: {
@@ -155,7 +155,7 @@ const BIRDS = {
         q: "這張是『翅膀』線索！你覺得要看翅膀有沒有白點，還是看羽毛長度？",
         options: [
           { t: "翅膀上的斑紋", isBest: true, feedback: "正確！它的翅膀上有兩條淡色的翼帶，是辨認重點。", clue: "翅膀短圓，有淡色翼帶" },
-          { t: "羽毛的數量", isBest: false, feedback: "數羽毛太辛苦啦！觀察翅膀上的淡色斑紋（翼帶）會更快認出它喔！", clue: "翅膀短圓，有淡色翼帶" }
+          { t: "羽毛的長度", isBest: false, feedback: "長度很難用肉眼量啦！觀察翅膀上的淡色斑紋（翼帶）會更快認出它喔！", clue: "翅膀短圓，有淡色翼帶" }
         ]
       },
       tail: {
@@ -177,17 +177,17 @@ const BIRDS = {
   bulbul: {
     key: "bulbul", name: "白頭翁",
     induction: {
-      legs: { q: "這隻鳥的『腳』有什麼特徵？要看顏色還是看有沒有毛？", options: [
-        { t: "腳的顏色", isBest: true, feedback: "沒錯！它的腳是黑色的。", clue: "腳偏黑，抓枝很穩" },
-        { t: "有沒有羽毛", isBest: false, feedback: "大多數鳥腳都沒毛喔！看黑色的顏色才是關鍵。", clue: "腳偏黑，抓枝很穩" }
+      legs: { q: "這隻鳥的『腳』要出現了！要觀察什麼？", options: [
+        { t: "腳的顏色", isBest: true, feedback: "對！白頭翁的腳是黑色的。", clue: "腳偏黑，抓枝很穩" },
+        { t: "腳的厚度", isBest: false, feedback: "厚度很難比較喔！看黑色的顏色才是關鍵。", clue: "腳偏黑，抓枝很穩" }
       ]},
       head: { q: "這隻鳥的『頭部』最明顯的是什麼？", options: [
         { t: "頭頂的顏色", isBest: true, feedback: "正確！白色的頭頂是它名字的由來。", clue: "頭頂偏白，臉側較深" },
-        { t: "眼睛的大小", isBest: false, feedback: "眼睛大小很難比較～看頭頂那塊白色羽毛就對了！", clue: "頭頂偏白，臉側較深" }
+        { t: "頭的圓潤度", isBest: false, feedback: "圓不圓很主觀～看頭頂那塊白色羽毛就對了！", clue: "頭頂偏白，臉側較深" }
       ]},
-      body: { q: "『身體』要出現了！要看什麼？", options: [{t:"身體色調", isBest:true, feedback:"對！灰褐色的身體配上黃綠色翅膀。", clue:"身體灰褐色，腹部較淡"}]},
+      body: { q: "『身體』要出現了！要看什麼？", options: [{t:"身體色調", isBest:true, feedback:"對！灰褐色的身體配上腹部較淡的色塊。", clue:"身體灰褐色，腹部較淡"}]},
       wing: { q: "『翅膀』的線索！要看顏色嗎？", options: [{t:"翅膀邊緣顏色", isBest:true, feedback:"沒錯！帶點黃綠色。", clue:"翅膀深色、邊緣帶黃綠色"}]},
-      tail: { q: "『尾巴』的長度重要嗎？", options: [{t:"尾巴形狀", isBest:true, feedback:"是的，中長平尾。", clue:"尾巴中長，末端偏方"}]}
+      tail: { q: "『尾巴』要如何辨認？", options: [{t:"末端形狀", isBest:true, feedback:"是的，中長平尾。", clue:"尾巴中長，末端偏方"}]}
     }
   }
 };
@@ -196,23 +196,20 @@ const BIRDS = {
  * 核心遊戲狀態
  * =========================== */
 let state = {
-  bird: null, // 神祕鳥對象
+  bird: null,
   clues: new Set(),
   pendingPart: null,
   solved: 0,
-  cameraOn: false
+  cameraOn: false,
+  correctionCount: 0 // 修正假設次數
 };
 
 const $ = (id) => document.getElementById(id);
 
-// 隨機初始化神祕鳥
 function initMysteryBird() {
   const keys = Object.keys(BIRDS);
   const randomKey = keys[Math.floor(Math.random() * keys.length)];
   state.bird = BIRDS[randomKey];
-  console.log("神秘鳥鎖定為：" + state.bird.name);
-  
-  // 隱藏名稱
   $("birdNameDisplay").innerText = "神祕鳥";
   updateUI();
 }
@@ -250,11 +247,10 @@ $("btnFeed").onclick = () => {
   const part = missing[Math.floor(Math.random() * missing.length)];
   state.pendingPart = part;
   
-  // 播放動畫
   $("feedOverlay").classList.add("show");
   setTimeout(() => {
     $("feedOverlay").classList.remove("show");
-    showInductionModal(part); // 進入提問階段
+    showInductionModal(part);
   }, 1200);
 };
 
@@ -266,29 +262,28 @@ function showInductionModal(part) {
   $("aiClueBox").classList.add("hidden");
   $("btnGoScan").classList.add("hidden");
   $("aiText").innerText = script.q;
-  $("aiOptions").innerHTML = "";
+  $("aiOptions").innerHTML = ""; // 清空舊按鈕
 
+  // 修復：確保選項按鈕正確生成
   script.options.forEach(opt => {
     const btn = document.createElement("button");
     btn.className = "optBtn";
     btn.innerText = opt.t;
     btn.onclick = () => {
-      // 顯示回饋
       $("aiText").innerText = opt.feedback;
       
       if (opt.isBest) {
-        // 選對：揭示線索
         $("aiClueBox").innerHTML = `🎁 獲得線索：<br/>${opt.clue}`;
         $("aiClueBox").classList.remove("hidden");
-        $("aiOptions").innerHTML = ""; // 隱藏選項
+        $("aiOptions").innerHTML = ""; 
         $("btnGoScan").classList.remove("hidden");
         $("btnGoScan").onclick = () => {
           modal.classList.add("hidden");
           openScan(opt.clue);
         };
       } else {
-        // 選錯：持續引導，不隱藏選項
-        showToast("再想一下下...");
+        showToast("再觀察看看...");
+        // 不清除選項，讓學生重選
       }
     };
     $("aiOptions").appendChild(btn);
@@ -296,7 +291,7 @@ function showInductionModal(part) {
 }
 
 /** ===========================
- * 掃描功能 (霓虹反饋)
+ * 掃描功能 (特徵對比回饋)
  * =========================== */
 function openScan(clueText) {
   if(!state.cameraOn) startCamera();
@@ -307,6 +302,40 @@ function openScan(clueText) {
 }
 
 function closeScan() { $("scanModal").classList.add("hidden"); }
+
+function handleScannedText(codeData) {
+  const focus = $("scanFocusBox");
+  const url = new URL(codeData);
+  const scannedBirdKey = url.searchParams.get("bird");
+  const scannedPart = url.searchParams.get("claim");
+
+  if (scannedPart === state.pendingPart) {
+    if (scannedBirdKey === state.bird.key) {
+      // 成功：亮綠色
+      focus.classList.remove("error");
+      state.clues.add(state.pendingPart);
+      state.pendingPart = null;
+      showToast("✅ 掃描正確！");
+      setTimeout(closeScan, 800);
+      updateUI();
+    } else {
+      // 錯誤：特徵對比回饋
+      state.correctionCount++;
+      focus.classList.add("error");
+      
+      const scannedBird = BIRDS[scannedBirdKey];
+      const targetBird = state.bird;
+      
+      // 抓取特徵文案進行比對
+      const scannedFeature = scannedBird.induction[scannedPart].options.find(o => o.isBest).clue;
+      const targetFeature = targetBird.induction[scannedPart].options.find(o => o.isBest).clue;
+      
+      showToast(`這張卡有「${scannedFeature}」，但我們的線索說要尋找「${targetFeature}」喔！`);
+    }
+  } else {
+    showToast(`❌ 掃錯部位囉！目前需要：${state.pendingPart}`);
+  }
+}
 
 function scanLoop() {
   const video = $("camera");
@@ -328,20 +357,10 @@ function scanLoop() {
       focus.style.width = (loc.topRightCorner.x - loc.topLeftCorner.x) / 640 * 100 + "%";
       focus.style.height = (loc.bottomLeftCorner.y - loc.topLeftCorner.y) / 480 * 100 + "%";
 
-      if (code.data.toLowerCase().includes(state.pendingPart)) {
-        // 亮綠色
-        focus.classList.remove("error");
-        state.clues.add(state.pendingPart);
-        state.pendingPart = null;
-        showToast("✅ 掃描正確！");
-        setTimeout(closeScan, 800);
-        updateUI();
-        return;
-      } else {
-        // 亮紅色
-        focus.classList.add("error");
-        const clue = state.bird.induction[state.pendingPart].options.find(o=>o.isBest).clue;
-        showToast(`❌ 掃錯部位囉！\n找一下神祕鳥「${state.pendingPart}」的特徵：${clue}`);
+      try {
+        handleScannedText(code.data);
+      } catch (e) {
+        showToast("非效線索 QR Code");
       }
     } else {
       focus.style.display = "none";
@@ -351,11 +370,10 @@ function scanLoop() {
 }
 
 /** ===========================
- * 辨認活動
+ * 初始化與相機
  * =========================== */
 $("btnQuiz").onclick = () => {
-  showToast(`🔍 辨認系統啟動！請根據線索選出${state.bird.name}的各部位特徵。`);
-  // 此處可接入你原本的 Quiz 邏輯...
+  showToast(`🔍 辨認系統啟動！修正假設次數：${state.correctionCount}`);
 };
 
 async function startCamera() {
