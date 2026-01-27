@@ -143,6 +143,24 @@
         }))
       };
     };
+
+    // [B2] 額外：把「線索文字」與「選項描述」做 embedding 相似度比對，供提示使用（免 API）
+    window.rankCandidatesByEmbedding = async (queryText, candidateTexts) => {
+      await ensurePrototypesReady(); // 確保 extractor 已就緒
+      const qv = await embed(queryText);
+      const scored = [];
+      for (let i = 0; i < candidateTexts.length; i++) {
+        const tv = await embed(candidateTexts[i]);
+        const s = dot(qv, tv);
+        scored.push({ text: candidateTexts[i], score: s });
+      }
+      // softmax 轉成比較好看的機率感（非嚴格機率，只是可讀性）
+      const probs = softmax(scored.map(x=>x.score));
+      scored.forEach((x,i)=> x.p = probs[i]);
+      scored.sort((a,b)=>b.score-a.score);
+      return scored.map(x=>({ text:x.text, score:Number(x.score.toFixed(4)), p:Number(x.p.toFixed(4)) }));
+    };
+
   </script>
 
   <style>
@@ -476,7 +494,16 @@
     .birdItem .sum{ font-size:12px; color:var(--muted); line-height:1.35; }
     .birdItem .tag{ display:inline-flex; width:max-content; padding:3px 8px; border-radius:999px; background:rgba(240,193,75,.18); border:1px solid rgba(240,193,75,.55); font-size:12px; font-weight:800; }
 
-  </style>
+  
+    .opt.hinted{
+      outline: 2px dashed rgba(240,193,75,.9);
+      outline-offset: 2px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
+    }
+
+
+    #kpiText{display:none;}
+</style>
 </head>
 
 <body>
@@ -493,7 +520,7 @@
         <span style="opacity:.6">|</span>
         待掃 <strong id="pendingText">—</strong>
         <span style="opacity:.6">|</span>
-        AI 提示 <strong id="hintLeft">∞</strong> <span id="mlStatus" style="opacity:.7">（規則）</span>
+        提示 <strong id="hintLeft">∞</strong> <span id="mlStatus" style="opacity:.7">（規則）</span>
       </div>
     </div>
 
@@ -502,7 +529,7 @@
         <div class="birdCanvas" id="birdCanvas"></div>
         <div class="hintRow" id="clueChips"></div>
         <div style="font-size:12px;opacity:.92;text-align:center;line-height:1.35">
-          流程：<strong>餵鳥</strong> → 系統指定部位 → <strong>AI 引導提問</strong> → 掃描線索卡 → 集滿 5 張線索 → <strong>開始辨認</strong><br/>
+          流程：<strong>餵鳥</strong> → 系統指定部位 → <strong>引導提問</strong> → 掃描線索卡 → 集滿 5 張線索 → <strong>開始辨認</strong><br/>
           答對一題：會先看到<strong>拼裝結果</strong>，再按「下一步」進入下一題。
         </div>
       </div>
@@ -557,11 +584,11 @@
   <div class="modal hidden" id="guideModal">
     <div class="box" style="max-width:600px;">
       <div class="boxHeader">
-        <div class="title" id="guideTitle">AI 觀察引導</div>
+        <div class="title" id="guideTitle">觀察引導</div>
         <button class="xbtn" id="closeGuide">×</button>
       </div>
       <div class="content">
-        <div class="aiBox" id="guideAiText" style="min-height:80px;">AI 正在分析線索重點...</div>
+        <div class="aiBox" id="guideAiText" style="min-height:80px;">正在分析線索重點...</div>
         <div id="guideActions">
           <div style="text-align:center;font-size:14px;color:var(--muted);margin-bottom:6px;">你覺得要先看什麼？</div>
           <div class="guideBtns" id="guideBtns"></div>
@@ -570,7 +597,7 @@
           <div class="clueBox" id="guideRealClue" style="width:100%;text-align:center;font-weight:bold;"></div>
           <!-- [B2] 讓 AI 引導更像 AI：請孩子挑出線索關鍵字 -->
           <div id="evidenceWrap" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:14px; padding:10px;">
-            <div style="text-align:center; font-size:13px; color:var(--muted); margin-bottom:8px;">AI 問：線索裡哪個詞最重要？</div>
+            <div style="text-align:center; font-size:13px; color:var(--muted); margin-bottom:8px;">請選出線索裡最關鍵的詞</div>
             <div id="evidenceChips" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;"></div>
           </div>
           <button class="btnPrimary" id="btnStartScanFromGuide" style="width:100%;">開啟相機掃描</button>
@@ -592,8 +619,8 @@
       </div>
       <div class="footer">
         <div class="left">
-          <div class="kpi" id="kpiText">不知道選哪個？問問 AI 助教</div>
-          <button class="btnSmall btnGhost" id="btnHintQuiz">AI 提示</button>
+          <div class="kpi" id="kpiText">不知道選哪個？看看提示</div>
+          <button class="btnSmall btnGhost" id="btnHintQuiz">小提示</button>
         </div>
         <div class="right">
           <button class="btnSmall btnGhost" id="btnCloseQuiz2">關閉</button>
@@ -605,7 +632,7 @@
   <div class="modal hidden" id="aiModal">
     <div class="box" style="max-width:720px;">
       <div class="boxHeader">
-        <div class="title">AI 助教 - 觀點交流</div>
+        <div class="title">提示小幫手</div>
         <button class="xbtn" id="closeAi">×</button>
       </div>
       <div class="content">
@@ -646,9 +673,11 @@
         <div id="revealBird"></div>
         <div class="summary" id="revealSummary"></div>
         <!-- [B2] 給老師掃描的成果碼（學生不用按任何匯出） -->
-        <div id="teacherCollectBox" style="margin-top:12px; background:#fff; border:1px solid #ddd; border-radius:16px; padding:12px;">
-          <div style="font-weight:900; text-align:center; margin-bottom:6px;">請給老師掃描成果碼</div>
-          <div style="text-align:center; color:var(--muted); font-size:13px; margin-bottom:10px;">（不用按匯出，老師掃一下就能收集）</div>
+        
+        <div id="collectStatus" class="hidden" style="margin-top:12px; background:#fff; border:1px solid #ddd; border-radius:16px; padding:12px; text-align:center; font-weight:900;"></div>
+<div id="teacherCollectBox" style="margin-top:12px; background:#fff; border:1px solid #ddd; border-radius:16px; padding:12px;">
+          <div style="font-weight:900; text-align:center; margin-bottom:6px;">（備用）掃描成果碼</div>
+          <div style="text-align:center; color:var(--muted); font-size:13px; margin-bottom:10px;">（若未能自動送出成果，可用此方式備援）</div>
           <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
             <canvas id="resultQR" width="220" height="220" style="border-radius:12px;"></canvas>
             <div style="font-size:12px; color:var(--muted);">成果碼：</div>
@@ -712,6 +741,8 @@ const CLAIM = qs.get("claim");
 const START = qs.get("start") === "1";
 const BIRD_PARAM = qs.get("bird") || localStorage.getItem("bbdemo:lastBird") || "sparrow";
 const TEACHER_MODE = qs.get("teacher") === "1";
+const COLLECT_ENDPOINT = qs.get("endpoint") || ""; // 若設定了 endpoint，完成後會自動送出成果
+
 localStorage.setItem("bbdemo:lastBird", BIRD_PARAM);
 
 const MYSTERY_NAME = "神秘鳥";
@@ -1029,6 +1060,10 @@ const btnQuiz = $("btnQuiz");
 const btnChooseBird = $("btnChooseBird");
 const btnExport = $("btnExport");
 const btnReset = $("btnReset");
+
+// 學生模式不顯示「匯出紀錄」（老師才需要）
+if(!TEACHER_MODE && btnExport){ btnExport.style.display = "none"; }
+
 
 const quizModal = $("quizModal");
 const stepDots = $("stepDots");
@@ -1434,7 +1469,7 @@ async function startPreScanGuide(partKey) {
     logEvent("ai_diag", { partKey, clue, dim, used });
   }
 
-  guideTitle.textContent = `AI 觀察引導：${label}`;
+  guideTitle.textContent = `觀察引導：${label}`;
   guideAiText.textContent = `準備尋找「${MYSTERY_NAME}」的${label}囉！`;
   guideBtns.innerHTML = "";
   guideResult.classList.add("hidden");
@@ -1445,7 +1480,7 @@ async function startPreScanGuide(partKey) {
   
   setTimeout(() => {
     const c = Number(dim.confidence || 0);
-    const confLine = (c>=0.78) ? "AI 很有把握" : (c>=0.6 ? "AI 還算有把握" : "AI 不太確定，兩個都可以看");
+    const confLine = (c>=0.78) ? "系統很有把握" : (c>=0.6 ? "系統還算有把握" : "系統不太確定，兩個都可以看");
     typeText(guideAiText, `要找${label}了！${confLine}：你覺得先「${dim.label}」還是先「${dim.wrong}」比較快找到答案？`, 20);
     
     const btnCorrect = document.createElement("div");
@@ -1476,7 +1511,7 @@ function handleGuideAnswer(isCorrect, dim, clueText) {
       if(btn.textContent === dim.wrong) btn.classList.add("wrong");
       if(btn.textContent === dim.label) btn.classList.add("correct");
     });
-    typeText(guideAiText, `你選了「${dim.wrong}」也合理～但 AI 判讀「${dim.label}」更像關鍵。\n看一下線索，再去找對應的線索卡：`, 15);
+    typeText(guideAiText, `你選了「${dim.wrong}」也合理～但系統判讀「${dim.label}」更像關鍵。\n看一下線索，再去找對應的線索卡：`, 15);
   }
 
   setTimeout(() => {
@@ -1487,39 +1522,74 @@ function handleGuideAnswer(isCorrect, dim, clueText) {
 }
 
 
-// [B2] 讓提示更像 AI：從線索句中抽出可能的「關鍵字」讓孩子選
-function buildEvidenceChips(clueText){
-  const pools = {
-    color:   ["紅","粉","黑","綠","褐","白","亮","淡","暗","棕","深","灰","黃","金屬"],
-    shape:   ["圓","尖","叉","方","長","短","細","粗","翼","翅","尾","腿","末端","剪刀"],
-    pattern: ["條紋","翼帶","眼圈","項鍊","珠頸","斑","點","紋","對比"],
-    size:    ["小巧","較大","中等","偏長","偏短","比例","長度","體型"],
-    behavior:["走","跳","抓","飛","覓食","靈活","警戒","活動"]
-  };
+// [B2] 觀察引導：從線索句中抽出可能的「關鍵詞」，並用「答對才解鎖掃描」讓選對/選錯有差異
+const EVIDENCE_POOLS = {
+  color:   ["粉紅","亮黑","金屬","紅","粉","黑","綠","褐","棕","白","灰","黃","亮","淡","暗","深","顏色"],
+  shape:   ["長尖","短圓","深叉","方尾","長腿","短腿","圓","尖","叉","方","長","短","細","粗","翼","翅","尾","腿","末端","剪刀","形狀"],
+  pattern: ["條紋","翼帶","白眼圈","眼圈","項鍊","珠頸","斑點","斑","點","紋","對比","花紋"],
+  size:    ["小巧","較大","中等","偏長","偏短","比例","長度","體型","大小"],
+  behavior:["走跳","走","跳","抓枝","抓","飛","覓食","靈活","警戒","活動","動作"]
+};
 
-  const found = [];
-  const addFound = (w)=>{ if(w && !found.includes(w)) found.push(w); };
+function _escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
-  // 先抓「多字詞」再抓單字（避免只抓到一堆「長、短」）
-  Object.values(pools).flat().filter(w=>w.length>=2).forEach(w=>{ if(clueText.includes(w)) addFound(w); });
-  Object.values(pools).flat().filter(w=>w.length==1).forEach(w=>{ if(clueText.includes(w)) addFound(w); });
+// 把「沒有/不/不是/無」附近出現的詞視為「否定詞」：例如「沒有白眼圈」→ 白、眼圈都算否定，不是關鍵
+function detectNegatedTokens(clueText){
+  const negated = new Set();
+  const vocab = Object.values(EVIDENCE_POOLS).flat().filter(Boolean);
+  const negPrefix = "(?:沒有|無|不是|不)";
+  vocab.forEach(tok=>{
+    const re = new RegExp(`${negPrefix}.{0,4}${_escRe(tok)}`);
+    if(re.test(clueText)) negated.add(tok);
+  });
+  return [...negated];
+}
 
-  // 至少 3 個：不足就補通用詞
-  const fillers = ["顏色","形狀","花紋","大小","動作"];
-  fillers.forEach(w=>{ if(found.length<3) addFound(w); });
-
-  return found.slice(0, 5); // 最多 5 個，不要太多
+function extractEvidence(clueText){
+  const neg = new Set(detectNegatedTokens(clueText));
+  const posByDim = {};
+  Object.keys(EVIDENCE_POOLS).forEach(dim=>{
+    const pos = [];
+    // 先多字詞再單字（避免只抓到一堆「長/短」）
+    EVIDENCE_POOLS[dim].filter(w=>w.length>=2).forEach(w=>{
+      if(clueText.includes(w) && !neg.has(w)) pos.push(w);
+    });
+    EVIDENCE_POOLS[dim].filter(w=>w.length===1).forEach(w=>{
+      if(clueText.includes(w) && !neg.has(w)) pos.push(w);
+    });
+    // 去重
+    posByDim[dim] = [...new Set(pos)];
+  });
+  return { posByDim, negTokens: [...neg] };
 }
 
 function chipBelongsToDim(word, dimKey){
-  const rules = {
-    color:   ["紅","粉","黑","綠","褐","白","亮","淡","暗","棕","深","灰","黃","金屬","顏色"],
-    shape:   ["圓","尖","叉","方","長","短","細","粗","翼","翅","尾","腿","末端","剪刀","形狀"],
-    pattern: ["條紋","翼帶","眼圈","項鍊","珠頸","斑","點","紋","對比","花紋"],
-    size:    ["小巧","較大","中等","偏長","偏短","比例","長度","體型","大小"],
-    behavior:["走","跳","抓","飛","覓食","靈活","警戒","活動","動作"]
-  };
-  return (rules[dimKey] || []).some(k => word.includes(k));
+  return (EVIDENCE_POOLS[dimKey] || []).some(k => word.includes(k));
+}
+
+// 產生 chips：保證至少塞進「正確關鍵詞」(若有)，並放入一些對照干擾詞
+function buildEvidenceChips(clueText, dimKey){
+  const { posByDim, negTokens } = extractEvidence(clueText);
+  const correctWords = (posByDim[dimKey] || []).slice(0, 1); // 只要 1 個重點就好，避免太學術
+
+  const chips = [];
+  const add = (w)=>{ if(w && !chips.includes(w)) chips.push(w); };
+
+  correctWords.forEach(add);
+
+  // 優先加入線索裡真的出現過的詞（包含否定詞，讓孩子能看到「不是重點」）
+  Object.keys(EVIDENCE_POOLS).forEach(d=>{
+    EVIDENCE_POOLS[d].forEach(w=>{
+      if(chips.length < 5 && clueText.includes(w)) add(w);
+    });
+  });
+
+  // 補通用詞
+  ["顏色","形狀","花紋","大小","動作"].forEach(w=>{
+    if(chips.length < 4) add(w);
+  });
+
+  return { chips: chips.slice(0, 5), correctWords, negTokens };
 }
 
 function renderEvidenceUI(dim, clueText){
@@ -1527,10 +1597,22 @@ function renderEvidenceUI(dim, clueText){
   const box = $("evidenceChips");
   if(!wrap || !box) return;
 
-  box.innerHTML = "";
-  const words = buildEvidenceChips(clueText);
+  // 學生模式：必須選對關鍵詞才解鎖掃描；教師模式：可直接掃
+  if(btnStartScanFromGuide){
+    if(TEACHER_MODE){
+      btnStartScanFromGuide.disabled = false;
+      btnStartScanFromGuide.textContent = "開啟相機掃描";
+    }else{
+      btnStartScanFromGuide.disabled = true;
+      btnStartScanFromGuide.textContent = "先選關鍵詞再掃描";
+    }
+  }
 
-  words.forEach(w=>{
+  box.innerHTML = "";
+
+  const { chips, correctWords, negTokens } = buildEvidenceChips(clueText, dim.type);
+
+  chips.forEach(w=>{
     const b = document.createElement("button");
     b.className = "btnGhost";
     b.style.padding = "10px 12px";
@@ -1541,22 +1623,51 @@ function renderEvidenceUI(dim, clueText){
     b.textContent = w;
 
     b.onclick = ()=>{
-      [...box.children].forEach(x=>x.disabled = true);
-      const ok = chipBelongsToDim(w, dim.type);
-      const msg = ok
-        ? `對！「${w}」跟「${dim.label}」有關，抓到重點了。`
-        : `「${w}」也不錯，但更推薦先看「${dim.label}」相關的特徵。`;
-      typeText(guideAiText, msg, 14);
+      const isNeg = negTokens.some(t => t === w || w.includes(t));
+      // 若沒有抓到任何「正向詞」，才退回用「屬於該類」判定
+      const ok = correctWords.length
+        ? correctWords.includes(w)
+        : (chipBelongsToDim(w, dim.type) && !isNeg);
 
-      // [B2] 這步也算一個「AI/學習者互動」事件（若你要做 learning analytics）
-      if(typeof logEvent === "function"){
-        logEvent("evidence_pick", { picked: w, ok, dim: dim.type, confidence: dim.confidence });
+      // 讓「選對/選錯」有差異：選錯可以重選；選對才解鎖掃描
+      if(ok){
+        [...box.children].forEach(x=>x.disabled = true);
+        b.style.background = "rgba(46,125,50,.08)";
+        b.style.borderColor = "#2e7d32";
+        if(btnStartScanFromGuide && !TEACHER_MODE){
+          btnStartScanFromGuide.disabled = false;
+          btnStartScanFromGuide.textContent = "開啟相機掃描";
+        }
+        typeText(guideAiText, `抓到重點！「${w}」就是這句線索最關鍵的地方。\n記住它，再去掃描線索卡。`, 14);
+
+        if(typeof logEvent === "function"){
+          logEvent("evidence_pick", { picked: w, ok:true, dim: dim.type, confidence: dim.confidence });
+        }
+      }else{
+        // 選錯：允許再選一次（不鎖死）
+        const msg = isNeg
+          ? `你選了「${w}」，但線索其實在說「沒有／不是」這個特徵。\n再挑一次：找「真的有出現」的重點。`
+          : `「${w}」有參考價值，但不是這句線索的重點。\n再挑一次：找最能幫你快速辨認的詞。`;
+        typeText(guideAiText, msg, 14);
+
+        // 視覺提示
+        b.style.background = "rgba(198,40,40,.06)";
+        b.style.borderColor = "#c62828";
+
+        // 1 秒後恢復可選（避免亂點）
+        [...box.children].forEach(x=>x.disabled = true);
+        setTimeout(()=>{ [...box.children].forEach(x=>x.disabled = false); }, 900);
+
+        if(typeof logEvent === "function"){
+          logEvent("evidence_pick", { picked: w, ok:false, dim: dim.type, confidence: dim.confidence, neg: isNeg });
+        }
       }
     };
 
     box.appendChild(b);
   });
 }
+
 
 function closeGuideModal() {
   guideModal.classList.add("hidden");
@@ -1749,7 +1860,7 @@ function scanLoop(){
 function showScanErrorModal(scannedBirdKey, scannedPartKey) {
   scanErrorPause = true;
   
-  guideTitle.textContent = "AI 特徵比對（掃錯囉）";
+  guideTitle.textContent = "特徵比對（掃錯囉）";
   guideBtns.innerHTML = "";
   guideResult.classList.remove("hidden");
   guideRealClue.textContent = "";
@@ -1786,6 +1897,9 @@ function showScanErrorModal(scannedBirdKey, scannedPartKey) {
     scanErrorPause = false;
     scanPreviewBox.classList.remove("error");
     scanCooldownUntil = Date.now() + 1000;
+    // 回復按鈕用途（避免之後變成「只有知道了」）
+    btnStartScanFromGuide.textContent = "開啟相機掃描";
+    btnStartScanFromGuide.onclick = openScan;
   };
 }
 
@@ -1878,27 +1992,23 @@ function renderStep(){
 
   const q = bird.quiz[part];
   const collected = state.clues[part]?.text || "（尚未收集到此部位線索）";
-
-  const diag = state.lastDiag?.[part] || null;
-  let aiHint = "";
-  if(diag){
-    const c = Number(diag.confidence || 0);
-    if(c >= 0.8) aiHint = `🤖 AI 小提示：先${diag.label}（很有把握）`;
-    else if(c >= 0.6) aiHint = `🤖 AI 小提示：先${diag.label}`;
-    else aiHint = `🤖 AI 小提示：先${diag.label}，也可以一起看看${diag.wrong}`;
-  }
-
+  //（提示已移到按鈕中，不在題目區塊常駐顯示）
   clueBox.innerHTML = `
     <div style="font-weight:900;font-size:16px;margin-bottom:6px">${q.prompt}</div>
     <div>你收集到的線索：<strong>${escapeHtml(collected)}</strong></div>
-    ${aiHint ? `<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(240,193,75,.15);border:1px solid rgba(0,0,0,.08);font-weight:800">${aiHint}</div>` : ``}
-  `;
+    `;
 
   optionsGrid.innerHTML = "";
   q.options.forEach(optKey=>{
     const opt = OPTION_LIB[part][optKey];
     const card = document.createElement("div");
     card.className = "opt";
+    // 若剛才點了「小提示」，就低調標記一次建議（避免影響美觀）
+    try{
+      if(state.hintSuggest && state.hintSuggest.partKey === part && state.hintSuggest.bestKey === optKey){
+        card.classList.add("hinted");
+      }
+    }catch(e){}
     card.innerHTML = `
       ${opt.svg}
       <div>
@@ -2036,85 +2146,100 @@ function renderAssembleBirdSVG(){
 
 let typingTimer = 0;
 
-function startAiDialogue(){
+async function startAiDialogue(){
   const partKey = STEPS[state.currentStep].key;
   const label = STEPS[state.currentStep].label;
-  const collected = Object.keys(state.clues).length;
 
-  const hintData = getInteractiveHintData(partKey);
+  const clueText = state.clues[partKey]?.text || getGuideText(partKey);
 
   aiModal.classList.remove("hidden");
   aiOptions.style.display = "none";
   aiOptions.innerHTML = "";
-  aiOk.textContent = "取消";
+  aiOk.textContent = "關閉";
 
-  const greeting = `我們收集到 ${collected} 個線索了！關於『${label}』的特徵，你剛才觀察到的細節是什麼？`;
-  typeText(aiText, greeting, 15);
+  typeText(aiText, `我可以把你收集到的線索，跟四個選項的描述做比對，幫你縮小範圍。\n\n線索：『${clueText}』\n\n正在比對中…`, 12);
 
-  setTimeout(() => {
-    aiOptions.style.display = "grid";
-    hintData.options.sort(() => Math.random() - 0.5);
-    
-    hintData.options.forEach(opt => {
-      const btn = document.createElement("div");
-      btn.className = "aiOptBtn";
-      btn.textContent = opt.text;
-      btn.onclick = () => handleAiChoice(opt, hintData.strategy, partKey);
-      aiOptions.appendChild(btn);
-    });
-  }, 1000);
-}
+  // 候選選項（四選一）
+  const optKeys = bird.quiz[partKey].options;
+  const candidateTexts = optKeys.map(k=>{
+    const o = OPTION_LIB[partKey][k];
+    return `${o.label}：${o.desc}`;
+  });
 
-function handleAiChoice(option, strategyLines, partKey){
-  aiOptions.style.display = "none";
-  
-  let msg = "";
-  const strategies = strategyLines.join("\n");
-  const ecology = getEcologyText(partKey, option.isCorrect);
+  // 先用 embedding（若可用），不行就用關鍵詞比對
+  let ranked = null;
+  let used = "rule";
+  try{
+    if(window.rankCandidatesByEmbedding){
+      ranked = await window.rankCandidatesByEmbedding(clueText, candidateTexts);
+      used = "ml";
+    }
+  }catch(e){ ranked = null; }
 
-  if(option.isCorrect){
-    msg = `對！「${option.coreFeature}」是關鍵，${ecology}\n\n★ 科學家建議篩選策略：\n${strategies}`;
-  } else if(option.isGuide){
-    msg = `沒關係，我們一起來看。\n這隻鳥的特徵其實偏向「${option.correctFeature}」。\n\n★ 科學家建議篩選策略：\n${strategies}`;
-  } else {
-    msg = `那可能是另一種鳥喔，我們再看一次線索卡...\n${MYSTERY_NAME}其實是「${option.correctFeature}」的。\n\n★ 科學家建議篩選策略：\n${strategies}`;
+  if(!ranked){
+    const { posByDim } = extractEvidence(clueText);
+    const kws = [...new Set(Object.values(posByDim).flat())].filter(Boolean);
+    ranked = candidateTexts.map(t=>{
+      const s = kws.reduce((acc,w)=> acc + (t.includes(w)?1:0), 0);
+      return { text:t, score:s, p: 0 };
+    }).sort((a,b)=>b.score-a.score);
   }
 
-  typeText(aiText, msg, 10);
-  aiOk.textContent = "知道了，回去答題";
-}
+  const best = ranked[0] || null;
+  const second = ranked[1] || null;
 
-function getEcologyText(part, isCorrect){
-  if(!isCorrect) return "";
-  if(part === "legs") return "這樣的顏色在樹枝間很顯眼，或者是很好的保護色。";
-  if(part === "wing") return "這能幫助牠在飛行時更流暢，或者在林間穿梭。";
-  if(part === "tail") return "這能控制飛行方向，或者在求偶時展示。";
-  if(part === "head") return "這讓同伴容易辨識，或者能融入背景環境。";
-  if(part === "body") return "這是最主要的辨識區塊，通常與棲息環境有關。";
-  return "這是很重要的特徵喔。";
-}
+  const bestIdx = best ? candidateTexts.indexOf(best.text) : -1;
+  const secondIdx = second ? candidateTexts.indexOf(second.text) : -1;
 
-function getInteractiveHintData(partKey) {
-  const correctKey = bird.quiz[partKey].correct;
-  const correctLabel = OPTION_LIB[partKey][correctKey].label; 
-  
-  const allOpts = bird.quiz[partKey].options;
-  const wrongKey = allOpts.find(k => k !== correctKey) || allOpts[0];
-  const wrongLabel = OPTION_LIB[partKey][wrongKey].label;
+  const bestKey = (bestIdx>=0) ? optKeys[bestIdx] : optKeys[0];
+  const secondKey = (secondIdx>=0) ? optKeys[secondIdx] : optKeys[1];
 
-  return {
-    options: [
-      { text: `我記得是「${correctLabel}」`, isCorrect: true, coreFeature: correctLabel },
-      { text: `我記得是「${wrongLabel}」`, isCorrect: false, correctFeature: correctLabel },
-      { text: "我需要你引導我觀察", isGuide: true, isCorrect: false, correctFeature: correctLabel }
-    ],
-    strategy: bird.ai[partKey] || ["1. 先看主色", "2. 比對形狀", "3. 排除差異太大的"]
+  // 存起來，讓答題畫面可以「低調」標記建議（不破壞美觀）
+  state.hintSuggest = { partKey, bestKey };
+  saveState();
+
+  const bestLabel = OPTION_LIB[partKey][bestKey].label;
+  const secondLabel = OPTION_LIB[partKey][secondKey].label;
+
+  // 抽 1~3 個關鍵詞（正向，不含「沒有/不」的否定詞）
+  const { posByDim } = extractEvidence(clueText);
+  const keywords = [...new Set(Object.values(posByDim).flat())].filter(Boolean).slice(0, 3);
+  const kwLine = keywords.length ? `關鍵詞：${keywords.join("、")}\n` : "";
+
+  const pStr = (best && typeof best.p === "number") ? `（把握度 ${(best.p).toFixed(2)}）` : "";
+  const compareLine = `最接近：${bestLabel} ${pStr}\n次接近：${secondLabel}`;
+
+  typeText(aiText, `${kwLine}${compareLine}\n\n你可以先從最接近的選項開始看；如果還是不確定，我也可以給你一步一步的觀察提示。`, 12);
+
+  aiOptions.style.display = "grid";
+  aiOptions.innerHTML = "";
+
+  const btn1 = document.createElement("div");
+  btn1.className = "aiOption";
+  btn1.textContent = "給我一步一步觀察";
+  btn1.onclick = ()=>{
+    const steps = bird.ai?.[partKey] || [];
+    const msg = steps.length
+      ? `一步一步來：\n- ${steps.join("\n- ")}`
+      : "你可以先抓最明顯的顏色/形狀，再看花紋或尾型去排除。";
+    typeText(aiText, msg, 12);
+    aiOptions.style.display = "none";
+    if(typeof logEvent === "function") logEvent("hint_step", { partKey, used });
   };
+
+  const btn2 = document.createElement("div");
+  btn2.className = "aiOption";
+  btn2.textContent = "我想自己選";
+  btn2.onclick = ()=> closeAiModal();
+
+  aiOptions.appendChild(btn1);
+  aiOptions.appendChild(btn2);
+
+  if(typeof logEvent === "function"){
+    logEvent("hint_open", { partKey, used, best: bestLabel, second: secondLabel });
+  }
 }
 
-btnHintQuiz.addEventListener("click", startAiDialogue);
-closeAi.addEventListener("click", closeAiModal);
-aiOk.addEventListener("click", closeAiModal);
 
 function closeAiModal(){
   aiModal.classList.add("hidden");
@@ -2203,11 +2328,57 @@ async function renderResultQR(){
   }
 }
 
-function openReveal(){
+async function openReveal(){
   revealModal.classList.remove("hidden");
   revealName.textContent = bird.name;
   revealBird.innerHTML = `<div style="width:min(520px,92vw)">${renderFinalBirdSVG()}</div>`;
   revealSummary.textContent = bird.summary;
+
+  const collectBox = document.getElementById("teacherCollectBox");
+  const statusBox = document.getElementById("collectStatus");
+
+  // 先嘗試自動送出（若老師有設定 endpoint）
+  if(COLLECT_ENDPOINT){
+    // 先顯示送出中
+    if(statusBox){
+      statusBox.classList.remove("hidden");
+      statusBox.textContent = "成果送出中…";
+    }
+    if(collectBox) collectBox.classList.add("hidden");
+
+    const payload = makeResultSummary(); // 已有：含鳥種、行為紀錄摘要
+    payload.sentAt = new Date().toISOString();
+    payload.birdKey = birdKey;
+    payload.birdName = bird.name;
+
+    let sent = false;
+    try{
+      // Apps Script 常見情境：用 no-cors 讓請求能送出，不被 CORS 擋住
+      await fetch(COLLECT_ENDPOINT, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      sent = true;
+    }catch(e){
+      sent = false;
+    }
+
+    if(sent){
+      if(statusBox) statusBox.textContent = "已送出成果 ✅（不用再掃描）";
+      return;
+    }else{
+      if(statusBox) statusBox.textContent = "送出失敗：可改用下方備用成果碼";
+      if(collectBox) collectBox.classList.remove("hidden");
+      try{ renderResultQR(); }catch(e){}
+      return;
+    }
+  }
+
+  // 沒有 endpoint：使用備用成果碼
+  if(statusBox) statusBox.classList.add("hidden");
+  if(collectBox) collectBox.classList.remove("hidden");
   try{ renderResultQR(); }catch(e){}
 }
 function closeRevealModal(){ revealModal.classList.add("hidden"); }
@@ -2294,7 +2465,7 @@ function init(){
   btnStopScan.addEventListener("click", closeScan);
   btnStopScan2.addEventListener("click", closeScan);
 
-  btnStartScanFromGuide.addEventListener("click", openScan);
+  btnStartScanFromGuide.onclick = openScan;
   closeGuide.addEventListener("click", closeGuideModal);
 
   btnQuiz.addEventListener("click", openQuiz);
