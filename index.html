@@ -6,6 +6,130 @@
   <title>Bird Builder AR Demo</title>
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script type="module">
+    import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
+
+    // [B2] 免費、免 API 的前端 ML：多語系句向量 embedding（支援中文）
+    const MODEL_NAME = "Xenova/distiluse-base-multilingual-cased-v2";
+    let extractorPromise = null;
+
+    function getExtractor() {
+      if (!extractorPromise) {
+        extractorPromise = pipeline("feature-extraction", MODEL_NAME, { device: "wasm" });
+      }
+      return extractorPromise;
+    }
+
+    // [B2] 更貼近鳥類線索的語意維度（可擴充）
+    const DIM_LABEL = {
+      color:    "色彩維度",
+      shape:    "形態維度",
+      pattern:  "斑紋維度",
+      size:     "大小/比例維度",
+      behavior: "行為維度",
+    };
+
+    // 以「原型句」表示每個維度（避免自己收集資料訓練；仍保有 ML 推論）
+    const PROTOTYPES = {
+      color: [
+        "這句線索主要描述顏色或色調，例如黑白褐綠、粉紅、明暗、淡深、亮黑。",
+        "重點是色彩、色相或明暗對比。"
+      ],
+      shape: [
+        "這句線索主要描述外形結構，例如翅型尾型、長短、尖圓、分叉、方尾、比例形狀。",
+        "重點是形態、輪廓、形狀與結構特徵。"
+      ],
+      pattern: [
+        "這句線索主要描述斑紋或標記，例如條紋、翼帶、眼圈、頸側斑點、項鍊斑。",
+        "重點是紋理、斑點、條帶等圖樣。"
+      ],
+      size: [
+        "這句線索主要描述大小或比例，例如小巧、較大、偏長、偏短、體型、長度與粗細比例。",
+        "重點是尺寸、比例與體型感。"
+      ],
+      behavior: [
+        "這句線索主要描述行為或動作，例如走跳靈活、抓枝、飛行方式、覓食、警戒或叫聲。",
+        "重點是活動方式、行為表現或動作特徵。"
+      ],
+    };
+
+    let protoEmb = null;
+
+    async function embed(text) {
+      const extractor = await getExtractor();
+      const out = await extractor(text, { pooling: "mean", normalize: true });
+      return Array.from(out.data);
+    }
+
+    function dot(a, b) {
+      let s = 0;
+      for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+      return s;
+    }
+
+    function softmax(scores) {
+      const m = Math.max(...scores);
+      const exps = scores.map(x => Math.exp(x - m));
+      const z = exps.reduce((a,b)=>a+b, 0) || 1;
+      return exps.map(e => e / z);
+    }
+
+    function meanVec(vecs) {
+      const d = vecs[0].length;
+      const m = new Array(d).fill(0);
+      for (const v of vecs) for (let i = 0; i < d; i++) m[i] += v[i];
+      for (let i = 0; i < d; i++) m[i] /= vecs.length;
+      return m;
+    }
+
+    async function ensurePrototypesReady() {
+      if (protoEmb) return;
+
+      const keys = Object.keys(PROTOTYPES);
+      const tmp = {};
+      for (const k of keys) {
+        const vecs = [];
+        for (const s of PROTOTYPES[k]) vecs.push(await embed(s));
+        tmp[k] = meanVec(vecs);
+      }
+      protoEmb = tmp;
+
+      window.__ML_MODEL_INFO__ = {
+        model: MODEL_NAME,
+        device: "wasm",
+        method: "prototype cosine + softmax(multi-class)",
+        dimensions: DIM_LABEL,
+        prototypes: PROTOTYPES
+      };
+      window.dispatchEvent(new CustomEvent("ml-ready"));
+    }
+
+    // 對外：ML 版 analyzeDimension
+    window.analyzeDimensionML = async (clueText) => {
+      await ensurePrototypesReady();
+      const v = await embed(clueText);
+
+      const dimKeys = Object.keys(PROTOTYPES);
+      const scores = dimKeys.map(k => dot(v, protoEmb[k])); // cosine similarity（normalize 後）
+      const probs = softmax(scores);
+
+      const ranked = dimKeys
+        .map((k, i) => ({ key: k, p: probs[i] }))
+        .sort((a, b) => b.p - a.p);
+
+      const top1 = ranked[0];
+      // 取第二名且確保不重複
+      const top2 = ranked.find(x => x.key !== top1.key) || ranked[0];
+
+      return {
+        type: top1.key,
+        label: DIM_LABEL[top1.key] || top1.key,
+        wrong: DIM_LABEL[top2.key] || top2.key,
+        confidence: (top1.p).toFixed(2),
+        ranked: ranked.slice(0, 3).map(x => ({ key: x.key, label: DIM_LABEL[x.key] || x.key, p: Number(x.p.toFixed(4)) }))
+      };
+    };
+  </script>
 
   <style>
     :root{
@@ -320,6 +444,24 @@
       0%{ transform:translateY(0) rotate(0deg); opacity:1; }
       100%{ transform:translateY(110vh) rotate(720deg); opacity:0; }
     }
+  
+    /* [B2] 題目（鳥種）選擇卡片 */
+    .birdItem{
+      background:#fff;
+      border:2px solid rgba(0,0,0,.10);
+      border-radius:18px;
+      padding:12px;
+      cursor:pointer;
+      min-height:92px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .birdItem:hover{ border-color: rgba(0,0,0,.22); }
+    .birdItem .name{ font-weight:900; font-size:16px; }
+    .birdItem .sum{ font-size:12px; color:var(--muted); line-height:1.35; }
+    .birdItem .tag{ display:inline-flex; width:max-content; padding:3px 8px; border-radius:999px; background:rgba(240,193,75,.18); border:1px solid rgba(240,193,75,.55); font-size:12px; font-weight:800; }
+
   </style>
 </head>
 
@@ -337,7 +479,7 @@
         <span style="opacity:.6">|</span>
         待掃 <strong id="pendingText">—</strong>
         <span style="opacity:.6">|</span>
-        AI 提示 <strong id="hintLeft">∞</strong>
+        AI 提示 <strong id="hintLeft">∞</strong> <span id="mlStatus" style="opacity:.7">（規則）</span>
       </div>
     </div>
 
@@ -374,9 +516,29 @@
       <button id="btnFeed">餵鳥（掉落線索）</button>
       <button class="dark" id="btnScan" disabled>掃描線索卡</button>
       <button class="btnPrimary" id="btnQuiz" disabled>開始辨認（1/5）</button>
+      <button class="dark" id="btnChooseBird">選題目</button>
+      <button class="dark" id="btnExport">匯出紀錄</button>
       <button class="dark" id="btnReset">重置本鳥</button>
     </div>
   </div>
+
+  
+  <!-- [B2] 題目（鳥種）選擇 -->
+  <div class="modal hidden" id="birdModal">
+    <div class="box">
+      <div style="padding:14px; font-weight:900; border-bottom:1px solid #ddd;">選擇題目（鳥種）</div>
+      <div style="padding:14px;">
+        <div style="margin-bottom:10px; color:var(--muted); font-size:13px; line-height:1.4">
+          你可以切換不同鳥種作為不同題目。切換後將重置該鳥種進度（不影響其他鳥種紀錄）。
+        </div>
+        <div class="grid" id="birdGrid"></div>
+        <div style="padding-top:10px; text-align:right;">
+          <button class="dark" id="closeBird">關閉</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <div class="modal hidden" id="guideModal">
     <div class="box" style="max-width:600px;">
@@ -704,6 +866,42 @@ const BIRDS = {
   }
 };
 
+
+// [B2] 確保每題選項不重複、且包含正確答案（避免資料維護時誤複製造成重複）
+function uniq(arr){ return [...new Set(arr || [])]; }
+
+function normalizeAllQuizOptions(){
+  const birdKeys = Object.keys(BIRDS);
+  birdKeys.forEach(bk=>{
+    const b = BIRDS[bk];
+    if(!b || !b.quiz) return;
+
+    Object.keys(b.quiz).forEach(part=>{
+      const q = b.quiz[part];
+      if(!q) return;
+
+      let opts = uniq(q.options);
+      if(q.correct && !opts.includes(q.correct)) opts.unshift(q.correct);
+      opts = uniq(opts);
+
+      const lib = OPTION_LIB[part] ? Object.keys(OPTION_LIB[part]) : [];
+      for(const k of lib){
+        if(opts.length >= 4) break;
+        if(!opts.includes(k)) opts.push(k);
+      }
+
+      // 若仍不足 4（理論上不會），就保留現有
+      q.options = opts.slice(0, 4);
+
+      // 最後保險：確保 correct 在內
+      if(q.correct && !q.options.includes(q.correct)){
+        q.options[0] = q.correct;
+      }
+    });
+  });
+}
+normalizeAllQuizOptions();
+
 function getBirdByKey(key){ return BIRDS[key] || BIRDS.sparrow; }
 const birdKey = BIRD_PARAM;
 const bird = getBirdByKey(birdKey);
@@ -720,6 +918,49 @@ const DEFAULT_STATE = {
 };
 
 let state = deepClone(DEFAULT_STATE);
+
+// [B2] 學習歷程紀錄（本地匯出）
+const sessionLog = [];
+const sessionId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+
+function logEvent(type, payload = {}) {
+  const entry = {
+    ts: new Date().toISOString(),
+    sessionId,
+    type,
+    payload,
+    stateSnap: {
+      birdKey,
+      pendingPart: state?.pendingPart || null,
+      clues: Object.keys(state?.clues || {}),
+      solved: Object.keys(state?.solved || {}),
+      hintLeft: state?.hintLeft ?? null,
+      cameraOn: !!state?.cameraOn
+    },
+    ml: window.__ML_MODEL_INFO__ ? { ...window.__ML_MODEL_INFO__ } : { model: "rule-based-fallback" }
+  };
+  sessionLog.push(entry);
+}
+
+function exportLog() {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    sessionId,
+    app: document.title,
+    log: sessionLog
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `birdbuilder_log_${sessionId}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast("已匯出 JSON 紀錄");
+}
+
 
 function loadState(){
   try{
@@ -753,6 +994,8 @@ const btnCamera = $("btnCamera");
 const btnFeed = $("btnFeed");
 const btnScan = $("btnScan");
 const btnQuiz = $("btnQuiz");
+const btnChooseBird = $("btnChooseBird");
+const btnExport = $("btnExport");
 const btnReset = $("btnReset");
 
 const quizModal = $("quizModal");
@@ -771,6 +1014,9 @@ const aiOk = $("aiOk");
 const aiOptions = $("aiOptions");
 
 const guideModal = $("guideModal");
+const birdModal = $("birdModal");
+const birdGrid = $("birdGrid");
+const closeBird = $("closeBird");
 const guideTitle = $("guideTitle");
 const guideAiText = $("guideAiText");
 const guideBtns = $("guideBtns");
@@ -811,6 +1057,54 @@ const scanPreview = $("scanPreview");
 const scanPctx = scanPreview.getContext("2d", { willReadFrequently:true });
 
 let toastTimer = 0;
+// [B2] 題目（鳥種）選擇
+function switchBird(newKey){
+  try{ localStorage.setItem("bbdemo:lastBird", newKey); }catch(e){}
+  if(typeof logEvent === "function") logEvent("switch_bird", { from: birdKey, to: newKey });
+  const url = new URL(location.href);
+  url.searchParams.set("bird", newKey);
+  url.searchParams.set("start", "1"); // 觸發重置流程
+  location.href = url.toString();
+}
+
+function buildBirdPicker(){
+  if(!birdGrid) return;
+  birdGrid.innerHTML = "";
+  const keys = Object.keys(BIRDS);
+
+  if(keys.length < 4){
+    const warn = document.createElement("div");
+    warn.style.gridColumn = "1 / -1";
+    warn.style.color = "var(--muted)";
+    warn.textContent = "目前鳥種少於 4 種，建議至少準備四題以利研究設計。";
+    birdGrid.appendChild(warn);
+  }
+
+  keys.forEach(k=>{
+    const b = BIRDS[k];
+    const item = document.createElement("div");
+    item.className = "birdItem";
+    item.innerHTML = `
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <div class="name">${b.name}</div>
+        ${k === birdKey ? '<div class="tag">目前題目</div>' : ''}
+      </div>
+      <div class="sum">${b.summary || ""}</div>
+    `;
+    item.addEventListener("click", ()=> switchBird(k));
+    birdGrid.appendChild(item);
+  });
+}
+
+function openBirdPicker(){
+  buildBirdPicker();
+  birdModal.classList.remove("hidden");
+}
+
+function closeBirdPicker(){
+  birdModal.classList.add("hidden");
+}
+
 function showToast(msg, ms=2600){
   toast.textContent = msg;
   toast.classList.add("show");
@@ -1016,22 +1310,81 @@ function feedBird(){
 }
 
 function analyzeDimension(clueText) {
-  const colors = ["紅","粉","黑","綠","褐","白","色","亮"];
-  const shapes = ["圓","尖","叉","方","長","短","細","粗","形","狀"];
-  let cCount = 0;
-  let sCount = 0;
-  colors.forEach(k => { if(clueText.includes(k)) cCount++; });
-  shapes.forEach(k => { if(clueText.includes(k)) sCount++; });
-  if (cCount > sCount) return { type: "color", label: "顏色", wrong: "形狀" };
-  if (sCount > cCount) return { type: "shape", label: "形狀", wrong: "顏色" };
-  return { type: "shape", label: "形狀", wrong: "顏色" };
+  // [B2] 規則式備援：更貼近鳥類線索的維度（避免 ML 尚未就緒時退化成只有顏色/形狀）
+  const DIM_LABEL = {
+    color:    "色彩維度",
+    shape:    "形態維度",
+    pattern:  "斑紋維度",
+    size:     "大小/比例維度",
+    behavior: "行為維度",
+  };
+
+  const feats = {
+    color:   ["紅","粉","黑","綠","褐","白","亮","淡","暗","棕","深","灰","黃","金屬","偏"],
+    shape:   ["圓","尖","叉","方","長","短","細","粗","形","狀","末端","翼型","尾","翅","腿","線條","剪刀"],
+    pattern: ["條紋","斑","斑紋","翼帶","眼圈","項鍊","珠頸","點","帶","紋","對比"],
+    size:    ["小巧","較大","中等","偏長","偏短","體型","長度","比例","中長","較長","較短"],
+    behavior:["走","跳","抓","飛","覓食","活動","靈活","警戒","叫","鳴","群","停","棲"]
+  };
+
+  const scores = Object.keys(feats).map(k => {
+    let s = 0;
+    feats[k].forEach(t => { if (clueText.includes(t)) s += 1; });
+    return [k, s];
+  });
+
+  scores.sort((a,b)=>b[1]-a[1]);
+
+  const top1 = scores[0];
+  let top2 = scores.find(x => x[0] !== top1[0]) || scores[0];
+
+  // 若完全沒有命中，預設以形態作為較常見可觀察向度
+  if (top1[1] === 0) {
+    return { type: "shape", label: DIM_LABEL.shape, wrong: DIM_LABEL.color, confidence: "0.50" };
+  }
+
+  const sum = scores.reduce((acc, x)=>acc + x[1], 0) || 1;
+  const conf = (top1[1] / sum).toFixed(2);
+
+  return {
+    type: top1[0],
+    label: DIM_LABEL[top1[0]] || top1[0],
+    wrong: DIM_LABEL[top2[0]] || top2[0],
+    confidence: conf
+  };
 }
 
-function startPreScanGuide(partKey) {
+async function startPreScanGuide(partKey) {
   const step = STEPS.find(s=>s.key===partKey);
   const label = step.label;
   const clue = getGuideText(partKey);
-  
+
+  // [B2] 優先使用 ML 語意診斷（若載入慢/失敗，退回規則版）
+  let dim;
+  let used = "rule";
+  try{
+    if(window.analyzeDimensionML){
+      dim = await window.analyzeDimensionML(clue);
+      used = "ml";
+      const ms = document.getElementById("mlStatus"); if(ms) ms.textContent = "（ML）";
+    }else{
+      dim = analyzeDimension(clue);
+      const ms = document.getElementById("mlStatus"); if(ms) ms.textContent = "（規則）";
+    }
+  }catch(e){
+    dim = analyzeDimension(clue);
+    const ms = document.getElementById("mlStatus"); if(ms) ms.textContent = "（規則）";
+  }
+
+  if(dim && dim.label === dim.wrong){
+    dim.wrong = "形態維度";
+  }
+
+  // 記錄：AI 診斷事件
+  if(typeof logEvent === "function"){
+    logEvent("ai_diag", { partKey, clue, dim, used });
+  }
+
   guideTitle.textContent = `AI 觀察引導：${label}`;
   guideAiText.textContent = `準備尋找「${MYSTERY_NAME}」的${label}囉！`;
   guideBtns.innerHTML = "";
@@ -1040,7 +1393,6 @@ function startPreScanGuide(partKey) {
   guideModal.classList.remove("hidden");
   guideActions.classList.remove("hidden");
 
-  const dim = analyzeDimension(clue);
   
   setTimeout(() => {
     typeText(guideAiText, `要找${label}了！你覺得觀察「${dim.label}」還是「${dim.wrong}」更有利於辨認？`, 20);
@@ -1741,6 +2093,26 @@ function init(){
     renderChips();
     renderCounters();
     showToast("已重置本鳥進度");
+  });
+
+
+  // [B2] 題目（鳥種）選擇
+  btnChooseBird.addEventListener("click", openBirdPicker);
+  closeBird.addEventListener("click", closeBirdPicker);
+  birdModal.addEventListener("click", (e)=>{ if(e.target === birdModal) closeBirdPicker(); });
+
+  // [B2] 匯出本次互動紀錄（JSON）
+  btnExport.addEventListener("click", ()=>{
+    logEvent("manual_export", {});
+    exportLog();
+  });
+
+  // [B2] ML ready 狀態提示
+  window.addEventListener("ml-ready", ()=>{
+    const ms = document.getElementById("mlStatus");
+    if(ms) ms.textContent = "（ML 就緒）";
+    showToast("ML 語意診斷模型已就緒");
+    logEvent("ml_ready", { info: window.__ML_MODEL_INFO__ || null });
   });
 
   closeQuiz.addEventListener("click", closeQuizModal);
