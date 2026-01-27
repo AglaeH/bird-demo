@@ -6,6 +6,8 @@
   <title>Bird Builder AR Demo</title>
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <!-- [B2] QR 產生（成果碼給老師掃描） -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script type="module">
     import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
 
@@ -22,11 +24,11 @@
 
     // [B2] 更貼近鳥類線索的語意維度（可擴充）
     const DIM_LABEL = {
-      color:    "色彩維度",
-      shape:    "形態維度",
-      pattern:  "斑紋維度",
-      size:     "大小/比例維度",
-      behavior: "行為維度",
+      color:    { kid: "看顏色", academic: "色彩維度" },
+      shape:    { kid: "看形狀", academic: "形態維度" },
+      pattern:  { kid: "看花紋", academic: "斑紋維度" },
+      size:     { kid: "看大小", academic: "大小/比例維度" },
+      behavior: { kid: "看行為", academic: "行為維度" },
     };
 
     // 以「原型句」表示每個維度（避免自己收集資料訓練；仍保有 ML 推論）
@@ -121,12 +123,24 @@
       // 取第二名且確保不重複
       const top2 = ranked.find(x => x.key !== top1.key) || ranked[0];
 
+      const labelKid = (DIM_LABEL[top1.key]?.kid) || top1.key;
+      const wrongKid = (DIM_LABEL[top2.key]?.kid) || top2.key;
+      const labelAcademic = (DIM_LABEL[top1.key]?.academic) || labelKid;
+      const wrongAcademic = (DIM_LABEL[top2.key]?.academic) || wrongKid;
+
       return {
         type: top1.key,
-        label: DIM_LABEL[top1.key] || top1.key,
-        wrong: DIM_LABEL[top2.key] || top2.key,
+        label: labelKid,
+        wrong: wrongKid,
+        labelAcademic,
+        wrongAcademic,
         confidence: (top1.p).toFixed(2),
-        ranked: ranked.slice(0, 3).map(x => ({ key: x.key, label: DIM_LABEL[x.key] || x.key, p: Number(x.p.toFixed(4)) }))
+        ranked: ranked.slice(0, 3).map(x => ({
+          key: x.key,
+          label: (DIM_LABEL[x.key]?.kid) || x.key,
+          labelAcademic: (DIM_LABEL[x.key]?.academic) || ((DIM_LABEL[x.key]?.kid) || x.key),
+          p: Number(x.p.toFixed(4))
+        }))
       };
     };
   </script>
@@ -549,11 +563,16 @@
       <div class="content">
         <div class="aiBox" id="guideAiText" style="min-height:80px;">AI 正在分析線索重點...</div>
         <div id="guideActions">
-          <div style="text-align:center;font-size:14px;color:var(--muted);margin-bottom:6px;">你覺得哪個觀察維度更關鍵？</div>
+          <div style="text-align:center;font-size:14px;color:var(--muted);margin-bottom:6px;">你覺得要先看什麼？</div>
           <div class="guideBtns" id="guideBtns"></div>
         </div>
         <div id="guideResult" class="hidden" style="display:flex;flex-direction:column;gap:10px;align-items:center;">
           <div class="clueBox" id="guideRealClue" style="width:100%;text-align:center;font-weight:bold;"></div>
+          <!-- [B2] 讓 AI 引導更像 AI：請孩子挑出線索關鍵字 -->
+          <div id="evidenceWrap" style="width:100%; background:#fff; border:1px solid #ddd; border-radius:14px; padding:10px;">
+            <div style="text-align:center; font-size:13px; color:var(--muted); margin-bottom:8px;">AI 問：線索裡哪個詞最重要？</div>
+            <div id="evidenceChips" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;"></div>
+          </div>
           <button class="btnPrimary" id="btnStartScanFromGuide" style="width:100%;">開啟相機掃描</button>
         </div>
       </div>
@@ -626,6 +645,16 @@
         <div class="revealTag" id="revealName">鳥名</div>
         <div id="revealBird"></div>
         <div class="summary" id="revealSummary"></div>
+        <!-- [B2] 給老師掃描的成果碼（學生不用按任何匯出） -->
+        <div id="teacherCollectBox" style="margin-top:12px; background:#fff; border:1px solid #ddd; border-radius:16px; padding:12px;">
+          <div style="font-weight:900; text-align:center; margin-bottom:6px;">請給老師掃描成果碼</div>
+          <div style="text-align:center; color:var(--muted); font-size:13px; margin-bottom:10px;">（不用按匯出，老師掃一下就能收集）</div>
+          <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <canvas id="resultQR" width="220" height="220" style="border-radius:12px;"></canvas>
+            <div style="font-size:12px; color:var(--muted);">成果碼：</div>
+            <div id="resultCode" style="font-weight:900; letter-spacing:1px;"></div>
+          </div>
+        </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
           <button class="btnPrimary" id="btnReplay">再玩一次</button>
           <button class="btnGhost" id="btnCopyLink">複製此鳥連結</button>
@@ -682,6 +711,7 @@ const qs = new URLSearchParams(location.search);
 const CLAIM = qs.get("claim");
 const START = qs.get("start") === "1";
 const BIRD_PARAM = qs.get("bird") || localStorage.getItem("bbdemo:lastBird") || "sparrow";
+const TEACHER_MODE = qs.get("teacher") === "1";
 localStorage.setItem("bbdemo:lastBird", BIRD_PARAM);
 
 const MYSTERY_NAME = "神秘鳥";
@@ -915,6 +945,8 @@ const DEFAULT_STATE = {
   usedHints: {},
   pendingPart: null,
   cameraOn: false,
+  // [B2] 記錄各部位最近一次 AI 診斷（供答題時提示）
+  lastDiag: {},
 };
 
 let state = deepClone(DEFAULT_STATE);
@@ -1312,11 +1344,11 @@ function feedBird(){
 function analyzeDimension(clueText) {
   // [B2] 規則式備援：更貼近鳥類線索的維度（避免 ML 尚未就緒時退化成只有顏色/形狀）
   const DIM_LABEL = {
-    color:    "色彩維度",
-    shape:    "形態維度",
-    pattern:  "斑紋維度",
-    size:     "大小/比例維度",
-    behavior: "行為維度",
+    color:    { kid: "看顏色", academic: "色彩維度" },
+    shape:    { kid: "看形狀", academic: "形態維度" },
+    pattern:  { kid: "看花紋", academic: "斑紋維度" },
+    size:     { kid: "看大小", academic: "大小/比例維度" },
+    behavior: { kid: "看行為", academic: "行為維度" },
   };
 
   const feats = {
@@ -1377,8 +1409,25 @@ async function startPreScanGuide(partKey) {
   }
 
   if(dim && dim.label === dim.wrong){
-    dim.wrong = "形態維度";
+    // [B2] 極端狀況：避免兩個按鈕一樣
+    const FALLBACK_CHOICES = ["看顏色","看形狀","看花紋","看大小","看行為"];
+    dim.wrong = FALLBACK_CHOICES.find(x=>x!==dim.label) || "看形狀";
   }
+
+  // [B2] 存下本部位的 AI 判讀，供答題階段做「AI 小提示」
+  try{
+    state.lastDiag = state.lastDiag || {};
+    state.lastDiag[partKey] = {
+      type: dim.type,
+      label: dim.label,
+      wrong: dim.wrong,
+      confidence: dim.confidence,
+      labelAcademic: dim.labelAcademic,
+      wrongAcademic: dim.wrongAcademic,
+      ranked: dim.ranked
+    };
+    saveState();
+  }catch(e){}
 
   // 記錄：AI 診斷事件
   if(typeof logEvent === "function"){
@@ -1395,7 +1444,9 @@ async function startPreScanGuide(partKey) {
 
   
   setTimeout(() => {
-    typeText(guideAiText, `要找${label}了！你覺得觀察「${dim.label}」還是「${dim.wrong}」更有利於辨認？`, 20);
+    const c = Number(dim.confidence || 0);
+    const confLine = (c>=0.78) ? "AI 很有把握" : (c>=0.6 ? "AI 還算有把握" : "AI 不太確定，兩個都可以看");
+    typeText(guideAiText, `要找${label}了！${confLine}：你覺得先「${dim.label}」還是先「${dim.wrong}」比較快找到答案？`, 20);
     
     const btnCorrect = document.createElement("div");
     btnCorrect.className = "guideBtn";
@@ -1419,19 +1470,92 @@ function handleGuideAnswer(isCorrect, dim, clueText) {
     [...guideBtns.children].forEach(btn => {
       if(btn.textContent === dim.label) btn.classList.add("correct");
     });
-    typeText(guideAiText, `沒錯！觀察「${dim.label}」是關鍵！\n這是這隻鳥的特徵線索，請記住它並掃描圖卡：`, 15);
+    typeText(guideAiText, `對！先「${dim.label}」通常最快。\n我把線索裡的重點挑出來了，記住後去掃描線索卡：`, 15);
   } else {
     [...guideBtns.children].forEach(btn => {
       if(btn.textContent === dim.wrong) btn.classList.add("wrong");
       if(btn.textContent === dim.label) btn.classList.add("correct");
     });
-    typeText(guideAiText, `其實「${dim.wrong}」也重要，但這隻鳥的「${dim.label}」特徵更明顯喔！\n請看這個線索，並找出對應的圖卡：`, 15);
+    typeText(guideAiText, `你選了「${dim.wrong}」也合理～但 AI 判讀「${dim.label}」更像關鍵。\n看一下線索，再去找對應的線索卡：`, 15);
   }
 
   setTimeout(() => {
     guideResult.classList.remove("hidden");
     guideRealClue.textContent = `「${clueText}」`;
+    try{ renderEvidenceUI(dim, clueText); }catch(e){}
   }, 1500);
+}
+
+
+// [B2] 讓提示更像 AI：從線索句中抽出可能的「關鍵字」讓孩子選
+function buildEvidenceChips(clueText){
+  const pools = {
+    color:   ["紅","粉","黑","綠","褐","白","亮","淡","暗","棕","深","灰","黃","金屬"],
+    shape:   ["圓","尖","叉","方","長","短","細","粗","翼","翅","尾","腿","末端","剪刀"],
+    pattern: ["條紋","翼帶","眼圈","項鍊","珠頸","斑","點","紋","對比"],
+    size:    ["小巧","較大","中等","偏長","偏短","比例","長度","體型"],
+    behavior:["走","跳","抓","飛","覓食","靈活","警戒","活動"]
+  };
+
+  const found = [];
+  const addFound = (w)=>{ if(w && !found.includes(w)) found.push(w); };
+
+  // 先抓「多字詞」再抓單字（避免只抓到一堆「長、短」）
+  Object.values(pools).flat().filter(w=>w.length>=2).forEach(w=>{ if(clueText.includes(w)) addFound(w); });
+  Object.values(pools).flat().filter(w=>w.length==1).forEach(w=>{ if(clueText.includes(w)) addFound(w); });
+
+  // 至少 3 個：不足就補通用詞
+  const fillers = ["顏色","形狀","花紋","大小","動作"];
+  fillers.forEach(w=>{ if(found.length<3) addFound(w); });
+
+  return found.slice(0, 5); // 最多 5 個，不要太多
+}
+
+function chipBelongsToDim(word, dimKey){
+  const rules = {
+    color:   ["紅","粉","黑","綠","褐","白","亮","淡","暗","棕","深","灰","黃","金屬","顏色"],
+    shape:   ["圓","尖","叉","方","長","短","細","粗","翼","翅","尾","腿","末端","剪刀","形狀"],
+    pattern: ["條紋","翼帶","眼圈","項鍊","珠頸","斑","點","紋","對比","花紋"],
+    size:    ["小巧","較大","中等","偏長","偏短","比例","長度","體型","大小"],
+    behavior:["走","跳","抓","飛","覓食","靈活","警戒","活動","動作"]
+  };
+  return (rules[dimKey] || []).some(k => word.includes(k));
+}
+
+function renderEvidenceUI(dim, clueText){
+  const wrap = $("evidenceWrap");
+  const box = $("evidenceChips");
+  if(!wrap || !box) return;
+
+  box.innerHTML = "";
+  const words = buildEvidenceChips(clueText);
+
+  words.forEach(w=>{
+    const b = document.createElement("button");
+    b.className = "btnGhost";
+    b.style.padding = "10px 12px";
+    b.style.borderRadius = "999px";
+    b.style.border = "1px solid rgba(0,0,0,.14)";
+    b.style.background = "#fff";
+    b.style.cursor = "pointer";
+    b.textContent = w;
+
+    b.onclick = ()=>{
+      [...box.children].forEach(x=>x.disabled = true);
+      const ok = chipBelongsToDim(w, dim.type);
+      const msg = ok
+        ? `對！「${w}」跟「${dim.label}」有關，抓到重點了。`
+        : `「${w}」也不錯，但更推薦先看「${dim.label}」相關的特徵。`;
+      typeText(guideAiText, msg, 14);
+
+      // [B2] 這步也算一個「AI/學習者互動」事件（若你要做 learning analytics）
+      if(typeof logEvent === "function"){
+        logEvent("evidence_pick", { picked: w, ok, dim: dim.type, confidence: dim.confidence });
+      }
+    };
+
+    box.appendChild(b);
+  });
 }
 
 function closeGuideModal() {
@@ -1755,9 +1879,19 @@ function renderStep(){
   const q = bird.quiz[part];
   const collected = state.clues[part]?.text || "（尚未收集到此部位線索）";
 
+  const diag = state.lastDiag?.[part] || null;
+  let aiHint = "";
+  if(diag){
+    const c = Number(diag.confidence || 0);
+    if(c >= 0.8) aiHint = `🤖 AI 小提示：先${diag.label}（很有把握）`;
+    else if(c >= 0.6) aiHint = `🤖 AI 小提示：先${diag.label}`;
+    else aiHint = `🤖 AI 小提示：先${diag.label}，也可以一起看看${diag.wrong}`;
+  }
+
   clueBox.innerHTML = `
     <div style="font-weight:900;font-size:16px;margin-bottom:6px">${q.prompt}</div>
     <div>你收集到的線索：<strong>${escapeHtml(collected)}</strong></div>
+    ${aiHint ? `<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(240,193,75,.15);border:1px solid rgba(0,0,0,.08);font-weight:800">${aiHint}</div>` : ``}
   `;
 
   optionsGrid.innerHTML = "";
@@ -2001,11 +2135,80 @@ function typeText(el, text, speedMs=14){
   }, speedMs);
 }
 
+
+// [B2] 產生「成果碼」：用 QR + 簡短代碼讓老師快速收集（不需要學生按匯出）
+const __SESSION_START_TS = Date.now();
+
+function makeResultSummary(){
+  // summary 盡量短，避免 QR 太大（老師收集後可再用程式還原/彙整）
+  const seconds = Math.max(1, Math.round((Date.now() - __SESSION_START_TS) / 1000));
+  const solved = Object.keys(state.solved || {}).length;
+  const clues = Object.keys(state.clues || {}).length;
+  const mlReady = !!window.__ML_MODEL_INFO__;
+
+  return {
+    v: 1,
+    sid: sessionId,          // 完整 sessionId（後續可用來去重）
+    bird: birdKey,
+    t: seconds,
+    solved,
+    clues,
+    ml: mlReady ? 1 : 0
+  };
+}
+
+function shortCodeFromSummary(sum){
+  // 產生 8 碼短碼：方便老師人工備援抄寫
+  try{
+    const raw = JSON.stringify(sum);
+    // 簡單 hash
+    let h = 2166136261;
+    for(let i=0;i<raw.length;i++){
+      h ^= raw.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    const code = (h >>> 0).toString(16).toUpperCase().padStart(8, "0").slice(0,8);
+    return code;
+  }catch(e){
+    return String(Date.now()).slice(-8);
+  }
+}
+
+async function renderResultQR(){
+  const canvas = document.getElementById("resultQR");
+  const codeEl = document.getElementById("resultCode");
+  if(!canvas || !codeEl) return;
+
+  const sum = makeResultSummary();
+  const code = shortCodeFromSummary(sum);
+  codeEl.textContent = code;
+
+  // 將 summary 以 base64 包裝（避免中文/特殊字元造成 QR 編碼問題）
+  let payload = "";
+  try{
+    payload = btoa(unescape(encodeURIComponent(JSON.stringify(sum))));
+  }catch(e){
+    payload = JSON.stringify(sum);
+  }
+
+  // 若 qrcode lib 未載入，就只顯示短碼
+  if(!window.QRCode || !QRCode.toCanvas){
+    return;
+  }
+
+  try{
+    await QRCode.toCanvas(canvas, payload, { errorCorrectionLevel: "M", margin: 1, width: 220 });
+  }catch(e){
+    // fail silently
+  }
+}
+
 function openReveal(){
   revealModal.classList.remove("hidden");
   revealName.textContent = bird.name;
   revealBird.innerHTML = `<div style="width:min(520px,92vw)">${renderFinalBirdSVG()}</div>`;
   revealSummary.textContent = bird.summary;
+  try{ renderResultQR(); }catch(e){}
 }
 function closeRevealModal(){ revealModal.classList.add("hidden"); }
 
@@ -2051,6 +2254,16 @@ function init(){
 
   elBirdName.textContent = MYSTERY_NAME; 
   elBirdSub.textContent = bird.sub;
+
+  // [B2] 教師模式：隱藏「選題目/匯出」給學生（避免看見題目與研究按鈕）
+  if(!TEACHER_MODE){
+    if(btnChooseBird) btnChooseBird.style.display = "none";
+    if(btnExport) btnExport.style.display = "none";
+  }
+  // 學生模式不顯示副標（避免洩題）
+  if(!TEACHER_MODE){
+    elBirdSub.textContent = "";
+  }
 
   renderBird(state.assembledCount);
   renderChips();
